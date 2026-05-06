@@ -5,7 +5,7 @@
 {
   environment.systemPackages = with pkgs; [
     anki
-    onlyoffice
+    onlyoffice-desktopeditors
     drawing
     obsidian
   ];
