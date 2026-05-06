@@ -16,8 +16,8 @@
     ffmpeg
     libXcursor
     fzf
-    ark
-    dolphin
+    kdePackages.ark
+    kdePackages.dolphin
     wl-clipboard
     keepassxc
     nh
