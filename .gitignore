@@ -1,0 +1,59 @@
+# Nix specific
+result
+result-*
+.direnv/
+
+# Build outputs
+/.dirty
+/.version
+/.git-commit
+/.gcroots
+
+# Sensitive files
+/secrets/
+/keys/
+*.age
+*.gpg
+ssh/
+id_*
+
+# Temporary files
+*~
+*.swp
+*.swo
+
+# Editor directories
+.vscode/
+.idea/
+*.code-workspace
+
+# Home Manager generation
+.home-manager/
+.home-manager-*
+
+# Local overrides
+configuration.local.nix
+hardware-configuration.local.nix
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Temporary Nix files
+/nixos-*
+/boot-*
+/tmp-*
+
+# Binary files
+*.bin
+*.img
+*.iso
+
+# Logs
+*.log
+logs/
+
+# Backup files
+*.bak
+*.backup
