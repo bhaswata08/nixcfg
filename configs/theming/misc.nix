@@ -66,17 +66,17 @@
           valign = "center";
         }
       ];
-      image = [
-        # Profile picture
-        {
-          path = "${./pfp.png}";
-          size = 110;
-          rounding = -1;
-          position = "0, -265";
-          halign = "center";
-          valign = "center";
-        }
-      ];
+      # image = [
+      #   # Profile picture
+      #   {
+      #     path = "${./pfp.png}";
+      #     size = 110;
+      #     rounding = -1;
+      #     position = "0, -265";
+      #     halign = "center";
+      #     valign = "center";
+      #   }
+      # ];
       input-field = [
         # Password input
         {
