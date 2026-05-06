@@ -92,7 +92,6 @@
     spawn-at-startup "systemctl" "--user" "start" "hyprpolkitagent"
     spawn-at-startup "mpd"
     spawn-at-startup "nm-applet"
-    spawn-at-startup "protonvpn-app" "--start-minimized"
     spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
     spawn-at-startup "blueman-applet"
     spawn-at-startup "sunsetr"
@@ -313,3 +312,5 @@
   '';
 
 }
+
+    # spawn-at-startup "protonvpn-app" "--start-minimized"
