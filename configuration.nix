@@ -33,6 +33,6 @@
       ./modules/services.nix
       ./modules/users.nix
   ];
-  system.copySystemConfiguration = true;
+  # system.copySystemConfiguration = true;
   system.stateVersion = "26.05"; # DO NOT CHANGE
 }
