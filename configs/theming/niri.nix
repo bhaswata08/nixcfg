@@ -37,7 +37,7 @@
         }
 
         // Uncomment this to make the mouse warp to the center of newly focused windows.
-        warp-mouse-to-focus
+        // warp-mouse-to-focus
 
         // Focus windows and outputs automatically when moving the mouse into them.
         // Setting max-scroll-amount="0%" makes it work only on windows already fully on screen.
@@ -50,61 +50,30 @@
         transform "normal"
         position x=1280 y=0
     }
+    
+    output "HDMI-A-1" {
+        mode "1920x1080@60.000"
+        scale 1
+        transform "normal"
+        position x=0 y=0
+    }
 
-    // Settings that influence how windows are positioned and sized.
-    // Find more information on the wiki:
-    // https://niri-wm.github.io/niri/Configuration:-Layout
     layout {
         // Set gaps around windows in logical pixels.
-        gaps 16
-
-        // When to center a column when changing focus, options are:
-        // - "never", default behavior, focusing an off-screen column will keep at the left
-        //   or right edge of the screen.
-        // - "always", the focused column will always be centered.
-        // - "on-overflow", focusing a column will center it if it doesn't fit
-        //   together with the previously focused column.
+        gaps 10
         center-focused-column "never"
 
-        // You can customize the widths that "switch-preset-column-width" (Mod+R) toggles between.
         preset-column-widths {
-            // Proportion sets the width as a fraction of the output width, taking gaps into account.
-            // For example, you can perfectly fit four windows sized "proportion 0.25" on an output.
-            // The default preset widths are 1/3, 1/2 and 2/3 of the output.
             proportion 0.33333
             proportion 0.5
             proportion 0.66667
-
-            // Fixed sets the width in logical pixels exactly.
-            // fixed 1920
         }
 
-        // You can also customize the heights that "switch-preset-window-height" (Mod+Ctrl+Shift+R) toggles between.
-        // preset-window-heights { }
-
-        // You can change the default width of the new windows.
         default-column-width { proportion 0.5; }
-        // If you leave the brackets empty, the windows themselves will decide their initial width.
-        // default-column-width {}
-
-        // By default focus ring and border are rendered as a solid background rectangle
-        // behind windows. That is, they will show up through semitransparent windows.
-        // This is because windows using client-side decorations can have an arbitrary shape.
-        //
-        // If you don't like that, you should uncomment `prefer-no-csd` below.
-        // Niri will draw focus ring and border *around* windows that agree to omit their
-        // client-side decorations.
-        //
-        // Alternatively, you can override it with a window rule called
-        // `draw-border-with-background`.
-
-        // You can change how the focus ring looks.
         focus-ring {
-            // Uncomment this line to disable the focus ring.
-            // off
+            width 2
 
-            // How many logical pixels the ring extends out from the windows.
-            width 4
+            // TODO: add adaptive colors and moving gradients
 
             // Colors can be set in a variety of ways:
             // - CSS named colors: "red"
@@ -138,8 +107,6 @@
 
         // You can also add a border. It's similar to the focus ring, but always visible.
         border {
-            // The settings are the same as for the focus ring.
-            // If you enable the border, you probably want to disable the focus ring.
             off
 
             width 4
@@ -148,38 +115,12 @@
 
             // Color of the border around windows that request your attention.
             urgent-color "#9b0000"
-
-            // Gradients can use a few different interpolation color spaces.
-            // For example, this is a pastel rainbow gradient via in="oklch longer hue".
-            //
-            // active-gradient from="#e5989b" to="#ffb4a2" angle=45 relative-to="workspace-view" in="oklch longer hue"
-
-            // inactive-gradient from="#505050" to="#808080" angle=45 relative-to="workspace-view"
         }
 
         // You can enable drop shadows for windows.
         shadow {
             // Uncomment the next line to enable shadows.
             // on
-
-            // By default, the shadow draws only around its window, and not behind it.
-            // Uncomment this setting to make the shadow draw behind its window.
-            //
-            // Note that niri has no way of knowing about the CSD window corner
-            // radius. It has to assume that windows have square corners, leading to
-            // shadow artifacts inside the CSD rounded corners. This setting fixes
-            // those artifacts.
-            //
-            // However, instead you may want to set prefer-no-csd and/or
-            // geometry-corner-radius. Then, niri will know the corner radius and
-            // draw the shadow correctly, without having to draw it behind the
-            // window. These will also remove client-side shadows if the window
-            // draws any.
-            //
-            // draw-behind-window true
-
-            // You can change how shadows look. The values below are in logical
-            // pixels and match the CSS box-shadow properties.
 
             // Softness controls the shadow blur radius.
             softness 30
@@ -194,11 +135,6 @@
             color "#0007"
         }
 
-        // Struts shrink the area occupied by windows, similarly to layer-shell panels.
-        // You can think of them as a kind of outer gaps. They are set in logical pixels.
-        // Left and right struts will cause the next window to the side to always be visible.
-        // Top and bottom struts will simply add outer gaps in addition to the area occupied by
-        // layer-shell panels and regular gaps.
         struts {
             // left 64
             // right 64
@@ -207,12 +143,19 @@
         }
     }
 
-    // Add lines like this to spawn processes at startup.
-    // Note that running niri as a session supports xdg-desktop-autostart,
-    // which may be more convenient to use.
-    // See the binds section below for more spawn examples.
+    spawn-at-startup "awww-daemon"
+    spawn-at-startup "awww" "img" "${./wallpaper.png}"
+    spawn-at-startup "xwayland-satellite"
+    spawn-at-startup "systemctl" "--user" "start" "hyprpolkitagent"
+    spawn-at-startup "mpd"
+    spawn-at-startup "nm-applet"
+    spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
+    spawn-at-startup "blueman-applet"
+    spawn-at-startup "sunsetr"
+    spawn-at-startup "swaync"
+    spawn-at-startup "waybar"
 
-    // This line starts waybar, a commonly used bar for Wayland compositors.
+    // TODO: Change to quicktile
     spawn-at-startup "waybar"
 
     // To run a shell command (with variables, pipes, etc.), use spawn-sh-at-startup:
@@ -220,22 +163,9 @@
 
     hotkey-overlay {
         // Uncomment this line to disable the "Important Hotkeys" pop-up at startup.
-        // skip-at-startup
+        skip-at-startup
     }
-
-    // Uncomment this line to ask the clients to omit their client-side decorations if possible.
-    // If the client will specifically ask for CSD, the request will be honored.
-    // Additionally, clients will be informed that they are tiled, removing some client-side rounded corners.
-    // This option will also fix border/focus ring drawing behind some semitransparent windows.
-    // After enabling or disabling this, you need to restart the apps for this to take effect.
-    // prefer-no-csd
-
-    // You can change the path where screenshots are saved.
-    // A ~ at the front will be expanded to the home directory.
-    // The path is formatted with strftime(3) to give you the screenshot date and time.
     screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
-
-    // You can also set this to null to disable saving screenshots to disk.
     // screenshot-path null
 
     // Animation settings.
@@ -263,30 +193,29 @@
         default-column-width {}
     }
 
-    // Open the Firefox picture-in-picture player as floating by default.
     window-rule {
-        // This app-id regular expression will work for both:
-        // - host Firefox (app-id is "firefox")
-        // - Flatpak Firefox (app-id is "org.mozilla.firefox")
-        match app-id=r#"firefox$"# title="^Picture-in-Picture$"
+        match {}
+        opacity 0.87
+        draw-border-with-background false
+        background-effect {
+            blur true
+        }
+    }
+
+    window-rule {
+        match app-id=r#"zen$"# title="^Picture-in-Picture$"
         open-floating true
     }
 
-    // Example: block out two password managers from screen capture.
-    // (This example rule is commented out with a "/-" in front.)
-    /-window-rule {
+    window-rule {
         match app-id=r#"^org\.keepassxc\.KeePassXC$"#
         match app-id=r#"^org\.gnome\.World\.Secrets$"#
-
         block-out-from "screen-capture"
-
-        // Use this instead if you want them visible on third-party screenshot tools.
-        // block-out-from "screencast"
     }
 
     // Example: enable rounded corners for all windows.
     // (This example rule is commented out with a "/-" in front.)
-    /-window-rule {
+    window-rule {
         geometry-corner-radius 12
         clip-to-geometry true
     }
@@ -302,26 +231,14 @@
         // Most actions that you can bind here can also be invoked programmatically with
         // `niri msg action do-something`.
 
-        // Mod-Shift-/, which is usually the same as Mod-?,
-        // shows a list of important hotkeys.
         Mod+Shift+Slash { show-hotkey-overlay; }
-
-        // Suggested binds for running programs: terminal, app launcher, screen locker.
         Mod+T hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty"; }
-        Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
+        Mod+A hotkey-overlay-title="Run an Application: rofi" { spawn-sh "rofi -show drun"; }
         Super+Alt+L hotkey-overlay-title="Lock the Screen: hyprlock" { spawn "hyprlock"; }
         Super+B hotkey-overlay-title="Spawn Browser: zen" {spawn "zen"; }
         Super+E hotkey-overlay-title="Spawn Explorer: Dolphin" {spawn "dolphin"; }
 
-        // Use spawn-sh to run a shell command. Do this if you need pipes, multiple commands, etc.
-        // Note: the entire command goes as a single argument. It's passed verbatim to `sh -c`.
-        // For example, this is a standard bind to toggle the screen reader (orca).
-        Super+Alt+S allow-when-locked=true hotkey-overlay-title=null { spawn-sh "pkill orca || exec orca"; }
 
-        // Example volume keys mappings for PipeWire & WirePlumber.
-        // The allow-when-locked=true property makes them work even when the session is locked.
-        // Using spawn-sh allows to pass multiple arguments together with the command.
-        // "-l 1.0" limits the volume to 100%.
         XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+ -l 1.0"; }
         XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1-"; }
         XF86AudioMute        allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"; }
@@ -470,15 +387,15 @@
         Mod+7 { focus-workspace 7; }
         Mod+8 { focus-workspace 8; }
         Mod+9 { focus-workspace 9; }
-        Mod+Ctrl+1 { move-column-to-workspace 1; }
-        Mod+Ctrl+2 { move-column-to-workspace 2; }
-        Mod+Ctrl+3 { move-column-to-workspace 3; }
-        Mod+Ctrl+4 { move-column-to-workspace 4; }
-        Mod+Ctrl+5 { move-column-to-workspace 5; }
-        Mod+Ctrl+6 { move-column-to-workspace 6; }
-        Mod+Ctrl+7 { move-column-to-workspace 7; }
-        Mod+Ctrl+8 { move-column-to-workspace 8; }
-        Mod+Ctrl+9 { move-column-to-workspace 9; }
+        Mod+Shift+1 { move-column-to-workspace 1; }
+        Mod+Shift+2 { move-column-to-workspace 2; }
+        Mod+Shift+3 { move-column-to-workspace 3; }
+        Mod+Shift+4 { move-column-to-workspace 4; }
+        Mod+Shift+5 { move-column-to-workspace 5; }
+        Mod+Shift+6 { move-column-to-workspace 6; }
+        Mod+Shift+7 { move-column-to-workspace 7; }
+        Mod+Shift+8 { move-column-to-workspace 8; }
+        Mod+Shift+9 { move-column-to-workspace 9; }
 
         // Alternatively, there are commands to move just a single window:
         // Mod+Ctrl+1 { move-window-to-workspace 1; }
