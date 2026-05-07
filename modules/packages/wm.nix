@@ -22,6 +22,7 @@
     anyrun
     fuzzel
     rofi
+    quickshell
   ];
 
   programs.niri.enable = true;
