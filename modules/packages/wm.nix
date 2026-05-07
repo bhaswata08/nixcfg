@@ -20,6 +20,7 @@
     wl-kbptr
     wlrctl
     anyrun
+    fuzzel
   ];
 
   programs.niri.enable = true;
