@@ -6,8 +6,6 @@ alias la = l -a
 alias ll = l -a1
 alias lt = eza --icons=always --group-directories-first --tree --level 1
 
-alias cd = z
-alias cdi = zi
 alias mv    = mv -v
 alias cp    = cp -v
 alias mkdir = mkdir -v
