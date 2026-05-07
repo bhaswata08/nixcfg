@@ -21,6 +21,7 @@
     wlrctl
     anyrun
     fuzzel
+    rofi
   ];
 
   programs.niri.enable = true;
