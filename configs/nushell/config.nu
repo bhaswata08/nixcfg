@@ -235,6 +235,9 @@ $env.config = {
 # Hooks
 mkdir ($nu.data-dir | path join "vendor/autoload")
 starship init nu | save -f ($nu.data-dir | path join "vendor/autoload/starship.nu")
-source ./zoxide.nu
-source ./aliases.nu
-source ./completions.nu
+source ~/.config/nushell/zoxide.nu
+source ~/.config/nushell/aliases.nu
+source ~/.config/nushell/completions.nu
+# source ./zoxide.nu
+# source ./aliases.nu
+# source ./completions.nu
