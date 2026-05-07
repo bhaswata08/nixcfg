@@ -142,7 +142,7 @@
     }
 
     spawn-at-startup "awww-daemon"
-    spawn-at-startup "awww" "img" "${./wallpaper.png}"
+    spawn-at-startup "awww" "img" "${./wallpapers/bg-18.png}"
     spawn-at-startup "xwayland-satellite"
     spawn-at-startup "systemctl" "--user" "start" "hyprpolkitagent"
     spawn-at-startup "mpd"
@@ -151,8 +151,8 @@
     spawn-at-startup "blueman-applet"
     spawn-at-startup "sunsetr"
     spawn-at-startup "swaync"
-    // TODO: Change to quicktile
-    spawn-at-startup "waybar"
+    // TODO: Change to quickshell
+    // spawn-at-startup "waybar"
 
 
     // To run a shell command (with variables, pipes, etc.), use spawn-sh-at-startup:

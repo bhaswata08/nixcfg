@@ -1,23 +1,38 @@
 {
-  ...
+  pkgs, ...
 }:
 {
-  # gtk = {
-  #   enable = true;
-  #   theme = {
-  #     name = "catppuccin-mocha-mauve-standard";
-  #     package = (
-  #       pkgs.catppuccin-gtk.override {
-  #         variant = "mocha";
-  #         accents = [ "mauve" ];
-  #       }
-  #     );
-  #   };
-  #   cursorTheme = {
-  #     name = "catppuccin-mocha-dark";
-  #     package = pkgs.catppuccin-cursors.mochaMauve;
-  #   };
-  # };
+  gtk = {
+    enable = true;
+    # theme = {
+    #   name = "catppuccin-mocha-mauve-standard";
+    #   package = (
+    #     pkgs.catppuccin-gtk.override {
+    #       variant = "mocha";
+    #       accents = [ "mauve" ];
+    #     }
+    #   );
+    # };
+    #
+    # cursorTheme = {
+    #   name = "catppuccin-mocha-dark";
+    #   package = pkgs.catppuccin-cursors.mochaMauve;
+    # };
+
+    gtk3.extraConfig = {
+      gtk-application-prefer-dark-theme = true;
+    };
+
+    gtk4.extraConfig = {
+      gtk-application-prefer-dark-theme = true;
+    };
+  };
+
+  dconf.settings = {
+    "org/gnome/desktop/interface" = {
+      color-scheme = "prefer-dark";
+    };
+  };
 
   # Lockscreen
   programs.hyprlock = {
