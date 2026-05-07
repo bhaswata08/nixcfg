@@ -153,10 +153,9 @@
     spawn-at-startup "blueman-applet"
     spawn-at-startup "sunsetr"
     spawn-at-startup "swaync"
-    spawn-at-startup "waybar"
-
     // TODO: Change to quicktile
     spawn-at-startup "waybar"
+
 
     // To run a shell command (with variables, pipes, etc.), use spawn-sh-at-startup:
     // spawn-sh-at-startup "qs -c ~/source/qs/MyAwesomeShell"
