@@ -18,7 +18,6 @@
 #     config nu --doc | nu-highlight | less -R
 # $env.config.show_banner = false
 # $env.config.buffer_editor = "nvim"
-# $env.FLAKE = "/home/bhaswata/hydenix"
 # $env.config.edit_mode = 'vi'
 # $env.config.cursor_shape = {
 #   vi_insert: block  # or 'line'
