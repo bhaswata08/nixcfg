@@ -20,8 +20,6 @@
     wl-kbptr
     wlrctl
     anyrun
-    fuzzel
-    rofi
     noctalia-qs
   ];
 

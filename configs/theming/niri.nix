@@ -143,7 +143,6 @@
 
     spawn-at-startup "awww-daemon"
     spawn-at-startup "noctalia-shell"
-    // spawn-at-startup "awww" "img" "${./wallpapers/bg-12.png}"
     spawn-at-startup "xwayland-satellite"
     spawn-at-startup "systemctl" "--user" "start" "hyprpolkitagent"
     spawn-at-startup "mpd"
@@ -231,11 +230,12 @@
 
         Mod+Shift+Slash { show-hotkey-overlay; }
         Mod+T hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty"; }
-        Mod+A hotkey-overlay-title="Run an Application: rofi" { spawn-sh "rofi -show drun"; }
+        Mod+A hotkey-overlay-title="Run an Application: rofi" { spawn-sh "noctalia-shell ipc call launcher toggle"; }
         Super+Alt+L hotkey-overlay-title="Lock the Screen: hyprlock" { spawn "hyprlock"; }
         Super+B hotkey-overlay-title="Spawn Browser: zen" {spawn "zen"; }
         Super+E hotkey-overlay-title="Spawn Explorer: Dolphin" {spawn "dolphin"; }
-
+        Super+Space hotkey-overlay-title="Spawn runner: Anyrun" { spawn-sh "anyrun --show-results-immediately true | wl-copy" }
+        Super+V { spawn-sh "noctalia-shell ipc call launcher clipboard"; }
 
         XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+ -l 1.0"; }
         XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1-"; }
@@ -454,7 +454,7 @@
         Mod+Shift+Equal { set-window-height "+10%"; }
 
         // Move the focused window between the floating and the tiling layout.
-        Mod+V       { toggle-window-floating; }
+        // Mod+V       { toggle-window-floating; }
         Mod+Shift+V { switch-focus-between-floating-and-tiling; }
 
         // Toggle tabbed column display mode.
