@@ -22,7 +22,7 @@
     anyrun
     fuzzel
     rofi
-    quickshell
+    noctalia-qs
   ];
 
   programs.niri.enable = true;
