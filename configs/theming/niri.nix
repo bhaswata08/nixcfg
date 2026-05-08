@@ -142,7 +142,7 @@
     }
 
     spawn-at-startup "awww-daemon"
-    spawn-at-startup "awww" "img" "${./wallpapers/bg-18.png}"
+    spawn-at-startup "awww" "img" "${./wallpapers/bg-12.png}"
     spawn-at-startup "xwayland-satellite"
     spawn-at-startup "systemctl" "--user" "start" "hyprpolkitagent"
     spawn-at-startup "mpd"

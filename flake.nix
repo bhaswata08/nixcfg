@@ -13,6 +13,11 @@
     };
     pfm.url = "github:bhaswata08/pfm";
     kidex.url = "github:Kirottu/kidex";
+
+    qml-niri = {
+      url = "github:imiric/qml-niri/main";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = 
