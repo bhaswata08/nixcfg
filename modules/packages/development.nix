@@ -16,6 +16,7 @@
     rustup
 
     # Version Control and Editors
+    vi
     vim
     neovim
     git
