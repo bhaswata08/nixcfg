@@ -6,7 +6,7 @@
   environment.systemPackages = with pkgs; [
     xwayland-satellite
     waybar
-    ghostty
+    wezterm
     awww
     fastfetch
     hyprpolkitagent

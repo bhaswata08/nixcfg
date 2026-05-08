@@ -229,12 +229,12 @@
         // `niri msg action do-something`.
 
         Mod+Shift+Slash { show-hotkey-overlay; }
-        Mod+T hotkey-overlay-title="Open a Terminal: ghostty" { spawn "ghostty"; }
+        Mod+T hotkey-overlay-title="Open a Terminal: wezterm" { spawn "wezterm"; }
         Mod+A hotkey-overlay-title="Run an Application: rofi" { spawn-sh "noctalia-shell ipc call launcher toggle"; }
         Super+Alt+L hotkey-overlay-title="Lock the Screen: hyprlock" { spawn "hyprlock"; }
         Super+B hotkey-overlay-title="Spawn Browser: zen" {spawn "zen"; }
         Super+E hotkey-overlay-title="Spawn Explorer: Dolphin" {spawn "dolphin"; }
-        Super+Space hotkey-overlay-title="Spawn runner: Anyrun" { spawn-sh "anyrun --show-results-immediately true | wl-copy" }
+        Super+Space hotkey-overlay-title="Spawn runner: Anyrun" { spawn-sh "anyrun --show-results-immediately true | wl-copy"; }
         Super+V { spawn-sh "noctalia-shell ipc call launcher clipboard"; }
 
         XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+ -l 1.0"; }

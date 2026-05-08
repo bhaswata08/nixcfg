@@ -16,6 +16,7 @@
     rustup
 
     # Version Control and Editors
+    vim
     neovim
     git
     git-lfs
@@ -54,6 +55,7 @@
     cups
     libglvnd
     stdenv.cc.cc.lib
+    gcc
   ];
 
   programs.direnv = {

@@ -352,7 +352,7 @@
         "position": "center",
         "pinnedApps": [],
         "sortByMostUsed": true,
-        "terminalCommand": "ghostty -e",
+        "terminalCommand": "wezterm -e",
         "customLaunchPrefixEnabled": false,
         "customLaunchPrefix": "",
         "viewMode": "list",
