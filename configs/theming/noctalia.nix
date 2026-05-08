@@ -4,6 +4,6 @@
 {
   programs.noctalia-shell = {
     enable = true;
-    settings = ./custom-config.json;
+    settings = ./noctalia-config.json;
   };
 }

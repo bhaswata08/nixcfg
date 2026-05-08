@@ -58,6 +58,7 @@
             home-manager.users.bhaswata = {
               imports = [
                 ./home.nix
+                inputs.noctalia.homeModules.default
               ];
             };
           }
