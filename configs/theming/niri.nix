@@ -142,6 +142,7 @@
     }
 
     spawn-at-startup "awww-daemon"
+    spawn-at-startup "wallust" "run" "-n" "./wallpapers/bg-12.png"
     spawn-at-startup "noctalia-shell"
     spawn-at-startup "xwayland-satellite"
     spawn-at-startup "systemctl" "--user" "start" "hyprpolkitagent"

@@ -4,6 +4,7 @@
 }:
 {
   environment.systemPackages = with pkgs; [
+    wallust
     xwayland-satellite
     waybar
     wezterm
