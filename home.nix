@@ -8,6 +8,7 @@
     ./configs/theming/niri.nix
     ./configs/theming/waybar.nix
     ./configs/theming/noctalia.nix
+    ./configs/theming/themes.nix
     ./configs/anyrun.nix
     ./configs/fastfetch.nix
     ./configs/nushell.nix
