@@ -18,6 +18,9 @@
     pkgs.dina-font
     pkgs.proggyfonts
     pkgs.corefonts
+    pkgs.nerd-fonts.iosevka        
+    pkgs.nerd-fonts.iosevka-term  
+
   ];
 
   fonts.fontconfig.defaultFonts = {

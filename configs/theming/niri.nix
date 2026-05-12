@@ -56,6 +56,13 @@
         position x=0 y=0
     }
 
+    environment {
+        QT_QPA_PLATFORMTHEME "qt6ct";
+        XCURSOR_THEME "catppuccin-mocha-dark";
+        XCURSOR_SIZE "24";
+        GTK_CURSOR_THEME "catppuccin-mocha-mauve-standard"
+    }
+
     layout {
         // Set gaps around windows in logical pixels.
         gaps 10
@@ -69,7 +76,7 @@
 
         default-column-width { proportion 0.5; }
         focus-ring {
-            width 2
+            width 3
 
             // TODO: add adaptive colors and moving gradients
 
@@ -79,7 +86,7 @@
             // - CSS-like notation: "rgb(255, 127, 0)", rgba(), hsl() and a few others.
 
             // Color of the ring on the active monitor.
-            active-color "#7fc8ff"
+            // active-color "#7fc8ff"
 
             // Color of the ring on inactive monitors.
             //
@@ -95,6 +102,7 @@
             // Changing the color space is also supported, check the wiki for more info.
             //
             // active-gradient from="#80c8ff" to="#c7ff7f" angle=45
+            active-gradient from="#a8c4e0" to="#d4a0c8" angle=45 relative-to="workspace-view"
 
             // You can also color the gradient relative to the entire view
             // of the workspace, rather than relative to just the window itself.
@@ -114,6 +122,7 @@
             // Color of the border around windows that request your attention.
             urgent-color "#9b0000"
         }
+
 
         // You can enable drop shadows for windows.
         shadow {
@@ -234,7 +243,7 @@
         Mod+A hotkey-overlay-title="Run an Application: rofi" { spawn-sh "noctalia-shell ipc call launcher toggle"; }
         Super+Alt+L hotkey-overlay-title="Lock the Screen: hyprlock" { spawn "hyprlock"; }
         Super+B hotkey-overlay-title="Spawn Browser: zen" {spawn "zen"; }
-        Super+E hotkey-overlay-title="Spawn Explorer: Dolphin" {spawn "dolphin"; }
+        Super+E hotkey-overlay-title="Spawn Explorer: nautilus" {spawn "nautilus"; }
         Super+Space hotkey-overlay-title="Spawn runner: Anyrun" { spawn-sh "anyrun --show-results-immediately true | wl-copy"; }
         Super+V { spawn-sh "noctalia-shell ipc call launcher clipboard"; }
 

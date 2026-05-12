@@ -17,7 +17,7 @@
     libXcursor
     fzf
     kdePackages.ark
-    kdePackages.dolphin
+    nautilus
     wl-clipboard
     keepassxc
     nh
