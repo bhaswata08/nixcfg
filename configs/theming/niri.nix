@@ -26,6 +26,7 @@
             tap
             dwt
             natural-scroll
+            tap-button-map "left-middle-right"
         }
 
         mouse {
