@@ -28,6 +28,11 @@
     cliphist
     gnome-disk-utility
     unzip
+    pciutils
+    usbutils
+    powertop
+    nvtopPackages.full
+    vulkan-tools
   ];
 
   programs.appimage.enable = true;

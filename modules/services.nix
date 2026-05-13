@@ -3,6 +3,7 @@
   ...
 }:
 {
+  services.xserver.videoDrivers = ["nvidia"];
   services.openssh.enable = true;
   services.printing = {
       enable = true;

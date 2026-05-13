@@ -57,7 +57,6 @@
     stdenv.cc.cc.lib
     gcc
   ];
-
   programs.direnv = {
     enable = true;
     nix-direnv.enable = true;
