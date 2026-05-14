@@ -33,6 +33,7 @@
     powertop
     nvtopPackages.full
     vulkan-tools
+    steam-run
   ];
 
   programs.appimage.enable = true;
