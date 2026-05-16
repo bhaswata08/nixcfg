@@ -211,13 +211,28 @@
     "lockScreenBlur": 0,
     "lockScreenTint": 0,
     "keybinds": {
-      "keyUp": ["Up"],
-      "keyDown": ["Down"],
-      "keyLeft": ["Left"],
-      "keyRight": ["Right"],
-      "keyEnter": ["Return", "Enter"],
-      "keyEscape": ["Esc"],
-      "keyRemove": ["Del"]
+      "keyUp": [
+        "Up"
+      ],
+      "keyDown": [
+        "Down"
+      ],
+      "keyLeft": [
+        "Left"
+      ],
+      "keyRight": [
+        "Right"
+      ],
+      "keyEnter": [
+        "Return",
+        "Enter"
+      ],
+      "keyEscape": [
+        "Esc"
+      ],
+      "keyRemove": [
+        "Del"
+      ]
     },
     "reverseScroll": false,
     "smoothScrollEnabled": true
@@ -270,7 +285,7 @@
   },
   "wallpaper": {
     "enabled": true,
-    "overviewEnabled": false,
+    "overviewEnabled": true,
     "directory": "/home/bhaswata/dotfiles/nixcfg/configs/theming/wallpapers",
     "monitorDirectories": [],
     "enableMultiMonitorDirectories": false,
@@ -574,7 +589,11 @@
     "autoHideMs": 2000,
     "overlayLayer": true,
     "backgroundOpacity": 1,
-    "enabledTypes": [0, 1, 2],
+    "enabledTypes": [
+      0,
+      1,
+      2
+    ],
     "monitors": []
   },
   "audio": {
