@@ -3,6 +3,8 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+    catppuccin.url = "github:catppuccin/nix";
+    uwu-colors.url = "github:q60/uwu_colors";
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -45,6 +47,7 @@
               "flakes"
             ];
           }
+          inputs.catppuccin.nixosModules.catppuccin
           inputs.home-manager.nixosModules.home-manager
           ./configuration.nix
           {
@@ -57,8 +60,9 @@
 
             home-manager.users.bhaswata = {
               imports = [
-                ./home.nix
                 inputs.noctalia.homeModules.default
+                inputs.catppuccin.homeModules.catppuccin
+                ./home.nix
               ];
             };
           }
@@ -68,6 +72,8 @@
       homeConfigurations."bhaswata" = inputs.home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
         modules = [
+          inputs.noctalia.homeModules.default
+          inputs.catppuccin.homeModules.catppuccin
           ./home.nix
         ];
       };

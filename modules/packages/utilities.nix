@@ -34,6 +34,7 @@
     nvtopPackages.full
     vulkan-tools
     steam-run
+    motrix
   ];
 
   programs.appimage.enable = true;

@@ -10,7 +10,6 @@
     ./configs/theming/noctalia.nix
     ./configs/theming/themes.nix
     ./configs/anyrun.nix
-    ./configs/fastfetch.nix
     ./configs/nushell.nix
     ./configs/programs.nix
     ./configs/starship.nix
