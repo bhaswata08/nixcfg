@@ -35,6 +35,7 @@
     vulkan-tools
     steam-run
     motrix
+    flatpak
   ];
 
   programs.appimage.enable = true;
