@@ -38,4 +38,6 @@
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
   services.flatpak.enable = true;
+  services.xserver.enable = true;
+  services.xserver.desktopManager.xfce.enable = true;
 }
