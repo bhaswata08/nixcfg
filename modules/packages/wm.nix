@@ -6,21 +6,16 @@
   environment.systemPackages = with pkgs; [
     wallust
     xwayland-satellite
-    waybar
     wezterm
     awww
     fastfetch
     hyprpolkitagent
-    hyprlock
-    starship
-    btop
     wlogout
     papirus-icon-theme
     pipes
     sunsetr
     wl-kbptr
     wlrctl
-    anyrun
     noctalia-qs
   ];
 

@@ -15,6 +15,7 @@
   };
 
   programs.neovim = {
+    enable = true;
     plugins = [
     (pkgs.vimPlugins.nvim-treesitter.withPlugins (p: [
       p.lua

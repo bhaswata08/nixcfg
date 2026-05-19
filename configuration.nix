@@ -33,6 +33,11 @@
       ./modules/services.nix
       ./modules/users.nix
   ];
+  swapDevices = lib.mkForce [
+    { device = "/dev/nvme1n1p3";
+      randomEncryption.enable = true;
+    }
+  ];
   # system.copySystemConfiguration = true;
   system.stateVersion = "26.05"; # DO NOT CHANGE
 }

@@ -6,8 +6,8 @@
   hardware.graphics.enable = true;
   hardware.nvidia = {
     modesetting.enable = true;
-    powerManagement.enable = false;
-    powerManagement.finegrained = false;
+    powerManagement.enable = true;
+    powerManagement.finegrained = true;
     open = false; 
     nvidiaSettings = true;
     package = config.boot.kernelPackages.nvidiaPackages.stable;
@@ -27,6 +27,5 @@
   };
   virtualisation.docker.enable = true;
   zramSwap.enable = true;
-  powerManagement.cpuFreqGovernor = "performance";
   hardware.bluetooth.enable = true;
 }

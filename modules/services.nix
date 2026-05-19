@@ -13,7 +13,10 @@
         pkgs.cnijfilter2
       ];
     };
-  services.avahi.enable = true;
+  services.avahi = {
+    enable = true;
+    openFirewall = true;
+  };
   services.displayManager.ly.enable = true;
   services.udisks2.enable = true;
   services.gvfs.enable = true;

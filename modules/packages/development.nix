@@ -12,18 +12,15 @@
     stylua
     luajit
     luarocks
-    docker
     rustup
 
     # Version Control and Editors
     vim
-    neovim
     git
     git-lfs
 
     # Shell
     carapace
-    nushell
     direnv
 
     # QOL tools

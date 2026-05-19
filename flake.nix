@@ -77,8 +77,10 @@
 
       homeConfigurations."bhaswata" = inputs.home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
+        specialArgs = {
+          inherit inputs;
+        };
         modules = [
-          inputs.stylix.nixosModules.stylix
           inputs.noctalia.homeModules.default
           inputs.catppuccin.homeModules.catppuccin
           ./home.nix
