@@ -7,6 +7,14 @@
     "icons/Papirus-kanagawa".source = ./gtkstuff/Papirus-kanagawa;
   };
 
+  home.pointerCursor = {
+    name = "catppuccin-mocha-dark";
+    package = pkgs.catppuccin-cursors.mochaMauve;
+    size = 24;
+    gtk.enable = true;
+    x11.enable = true;  # include if you're on X11
+  };
+
   gtk = {
     enable = true;
     theme = {

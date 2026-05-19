@@ -25,6 +25,11 @@
       url = "github:noctalia-dev/noctalia-shell";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    stylix = {
+      url = "github:nix-community/stylix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = 
@@ -47,6 +52,7 @@
               "flakes"
             ];
           }
+          inputs.stylix.nixosModules.stylix
           inputs.catppuccin.nixosModules.catppuccin
           inputs.home-manager.nixosModules.home-manager
           ./configuration.nix
@@ -72,6 +78,7 @@
       homeConfigurations."bhaswata" = inputs.home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
         modules = [
+          inputs.stylix.nixosModules.stylix
           inputs.noctalia.homeModules.default
           inputs.catppuccin.homeModules.catppuccin
           ./home.nix
