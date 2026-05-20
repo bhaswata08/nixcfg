@@ -8,6 +8,7 @@
     onlyoffice-desktopeditors
     drawing
     obsidian
+    foliate
   ];
 
 }

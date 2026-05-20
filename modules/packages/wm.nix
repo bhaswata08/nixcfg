@@ -17,6 +17,11 @@
     wl-kbptr
     wlrctl
     noctalia-qs
+    catppuccin-cursors.mochaMauve
+    (catppuccin-gtk.override {
+      variant = "mocha";
+      accents = [ "mauve" ];
+    })
   ];
 
   programs.niri.enable = true;

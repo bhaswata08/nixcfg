@@ -8,6 +8,7 @@
     # Languages and formatters
     uv
     go
+    lua
     nodejs
     stylua
     luajit
@@ -16,6 +17,7 @@
 
     # Version Control and Editors
     vim
+    neovim
     git
     git-lfs
 

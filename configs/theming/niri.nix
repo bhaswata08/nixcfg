@@ -70,6 +70,11 @@
         GTK_CURSOR_THEME "catppuccin-mocha-mauve-standard"
     }
 
+    cursor {
+        xcursor-theme "catppuccin-mocha-dark"
+            xcursor-size 24
+    }
+
     layout {
         // Set gaps around windows in logical pixels.
         gaps 10
