@@ -1,5 +1,5 @@
 {
-  pkgs, ...
+  pkgs, lib, ...
 }:
 {
   xdg.dataFile = {
@@ -28,7 +28,7 @@
       name = "Abyssal-Wave";
     };
     iconTheme = {
-      name = "Papirus-kanagawa";
+      name = lib.mkForce "Papirus-kanagawa";
     };
     cursorTheme = {
       name = "catppuccin-mocha-dark";
