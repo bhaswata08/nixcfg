@@ -8,7 +8,7 @@
     onlyoffice-desktopeditors
     drawing
     obsidian
-    foliate
+    koodo-reader
   ];
 
 }
