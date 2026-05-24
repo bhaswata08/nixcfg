@@ -55,6 +55,7 @@
     libglvnd
     stdenv.cc.cc.lib
     gcc
+    arduino-ide
   ];
   programs.direnv = {
     enable = true;
