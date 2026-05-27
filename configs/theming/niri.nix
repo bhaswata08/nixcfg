@@ -258,6 +258,7 @@
         Super+E hotkey-overlay-title="Spawn Explorer: nautilus" {spawn "nautilus"; }
         Super+Space hotkey-overlay-title="Spawn runner: Anyrun" { spawn-sh "anyrun --show-results-immediately true | wl-copy"; }
         Super+V { spawn-sh "noctalia-shell ipc call launcher clipboard"; }
+        Ctrl+Alt+Delete { spawn-sh "noctalia-shell ipc call sessionMenu toggle"; }
 
         XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+ -l 1.0"; }
         XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1-"; }
@@ -505,10 +506,6 @@
         // The allow-inhibiting=false property can be applied to other binds as well,
         // which ensures niri always processes them, even when an inhibitor is active.
         Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
-
-        // The quit action will show a confirmation dialog to avoid accidental exits.
-        Mod+Shift+E { quit; }
-        Ctrl+Alt+Delete { quit; }
 
         // Powers off the monitors. To turn them back on, do any input like
         // moving the mouse or pressing any other key.
