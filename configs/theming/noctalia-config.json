@@ -63,28 +63,12 @@
       "center": [
         {
           "clockColor": "none",
-          "customFont": "DejaVu Serif Condensed",
-          "formatHorizontal": "HH:mm ddd, MMM dd",
-          "formatVertical": "HH mm - dd MM",
+          "customFont": "IosevkaTerm NFP Thin Obl",
+          "formatHorizontal": "hh:mm a ddd, MMM dd",
+          "formatVertical": "hh mm a - dd MM",
           "id": "Clock",
           "tooltipFormat": "HH:mm ddd, MMM dd",
           "useCustomFont": true
-        },
-        {
-          "compactMode": true,
-          "hideMode": "hidden",
-          "hideWhenIdle": false,
-          "id": "MediaMini",
-          "maxWidth": 145,
-          "panelShowAlbumArt": true,
-          "scrollingMode": "hover",
-          "showAlbumArt": true,
-          "showArtistFirst": true,
-          "showProgressRing": false,
-          "showVisualizer": true,
-          "textColor": "none",
-          "useFixedWidth": false,
-          "visualizerType": "linear"
         }
       ],
       "right": [
