@@ -56,6 +56,9 @@
     stdenv.cc.cc.lib
     gcc
     arduino-ide
+
+# Mess
+    opencode
   ];
   programs.direnv = {
     enable = true;
