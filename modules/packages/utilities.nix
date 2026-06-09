@@ -38,6 +38,8 @@
     flatpak
     wl-mirror
     jq
+    scrcpy
+    android-tools
   ];
 
   programs.appimage.enable = true;
