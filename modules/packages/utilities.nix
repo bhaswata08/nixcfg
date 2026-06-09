@@ -36,6 +36,8 @@
     steam-run
     motrix
     flatpak
+    wl-mirror
+    jq
   ];
 
   programs.appimage.enable = true;

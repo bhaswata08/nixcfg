@@ -34,5 +34,11 @@
           ],
           )
       '';
+    extraConfigFiles."randr.ron".text = ''
+      Config(
+        prefix: ":dp",
+        max_entries: 5,
+      )
+    '';
   };
 }
