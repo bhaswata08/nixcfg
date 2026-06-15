@@ -59,6 +59,7 @@
 
 # Mess
     opencode
+    antigravity
   ];
   programs.direnv = {
     enable = true;
