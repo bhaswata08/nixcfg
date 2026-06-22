@@ -59,3 +59,4 @@ logs/
 *.backup
 *.txt
 *.xml
+hardware-configuration.nix
