@@ -9,6 +9,7 @@
     drawing
     obsidian
     koodo-reader
+    thunderbird
   ];
 
 }
