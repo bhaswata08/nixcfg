@@ -26,6 +26,7 @@
     extraBackends = [ pkgs.sane-airscan ];
   };
   virtualisation.docker.enable = true;
+  virtualisation.waydroid.enable = true;
   zramSwap.enable = true;
   hardware.bluetooth.enable = true;
 }

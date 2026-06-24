@@ -40,6 +40,9 @@
     jq
     scrcpy
     android-tools
+    ventoy
+    iptables
+    nftables
   ];
 
   programs.appimage.enable = true;

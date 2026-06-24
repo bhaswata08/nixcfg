@@ -33,6 +33,9 @@
       ./modules/services.nix
       ./modules/users.nix
   ];
+  nixpkgs.config.permittedInsecurePackages = [
+    "ventoy-1.1.12"
+  ];
   # swapDevices = lib.mkForce [
   #   { device = "/dev/mapper/luks-7282faec-2147-4fdf-b6d8-6529460f9fe1";
   #     randomEncryption.enable = true;
