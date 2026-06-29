@@ -16,6 +16,7 @@ alias c = clear
 alias du = dust
 
 alias nv = nvim
+alias snv = steam-run nvim
 alias man = tldr
 alias cal = cal -t
 
