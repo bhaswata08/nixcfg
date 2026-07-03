@@ -60,6 +60,8 @@
 # Mess
     opencode
     antigravity
+    claude-code
+    gh
   ];
   programs.direnv = {
     enable = true;
