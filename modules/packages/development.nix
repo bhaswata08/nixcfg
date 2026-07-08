@@ -62,6 +62,7 @@
     antigravity
     claude-code
     gh
+    flyctl
   ];
   programs.direnv = {
     enable = true;
