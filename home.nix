@@ -10,6 +10,7 @@
     ./configs/theming/themes.nix
     ./configs/anyrun.nix
     ./configs/nushell.nix
+    ./configs/wezterm.nix
     ./configs/programs.nix
     ./configs/starship.nix
     ./configs/xdg-defaults.nix
