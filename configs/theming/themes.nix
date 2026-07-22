@@ -22,6 +22,16 @@
     hyprlock.enable = false;
   };
 
+  # Qt theming: Kvantum style driven by catppuccin (mocha/mauve). Setting
+  # style.name = "kvantum" auto-installs the Kvantum engine for Qt5 + Qt6 and
+  # exports QT_STYLE_OVERRIDE=kvantum, which themes Qt apps (Ark, KeePassXC,
+  # Kdenlive). catppuccin.kvantum (autoEnabled) drops in the theme files.
+  qt = {
+    enable = true;
+    platformTheme.name = "qtct";
+    style.name = "kvantum";
+  };
+
   gtk = {
     enable = true;
     theme = {
