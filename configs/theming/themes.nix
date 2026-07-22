@@ -8,8 +8,8 @@
   };
 
   home.pointerCursor = {
-    name = "Bibata-Modern-Classic";
-    package = pkgs.bibata-cursors;
+    name = "catppuccin-mocha-mauve-cursors";
+    package = pkgs.catppuccin-cursors.mochaMauve;
     size = 24;
     gtk.enable = true;
   };
@@ -31,7 +31,7 @@
       name = lib.mkForce "Papirus-kanagawa";
     };
     cursorTheme = {
-      name = "catppuccin-mocha-dark";
+      name = "catppuccin-mocha-mauve-cursors";
       package = pkgs.catppuccin-cursors.mochaMauve;
     };
     gtk3.extraConfig.gtk-application-prefer-dark-theme = true;
