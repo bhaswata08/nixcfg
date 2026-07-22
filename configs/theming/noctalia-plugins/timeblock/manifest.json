@@ -1,0 +1,37 @@
+{
+  "id": "timeblock",
+  "name": "Time Blocks",
+  "version": "1.0.0",
+  "minNoctaliaVersion": "4.0.0",
+  "author": "bhaswata",
+  "license": "MIT",
+  "repository": "https://github.com/noctalia-dev/noctalia-plugins",
+  "description": "Day scheduler that lays out the current day as labeled time blocks, tracks the active block, and lets the schedule be freely rearranged as a recurring template and as one-off daily overrides.",
+  "tags": [
+    "Bar",
+    "Panel",
+    "Productivity"
+  ],
+  "entryPoints": {
+    "main": "Main.qml",
+    "barWidget": "BarWidget.qml",
+    "panel": "Panel.qml",
+    "settings": "Settings.qml"
+  },
+  "dependencies": {
+    "plugins": []
+  },
+  "metadata": {
+    "defaultSettings": {
+      "template": [],
+      "today": {
+        "date": "",
+        "blocks": []
+      },
+      "notifyTransitions": false,
+      "pushIncrement": 15,
+      "defaultBlockMinutes": 30,
+      "defaultColor": "primary"
+    }
+  }
+}

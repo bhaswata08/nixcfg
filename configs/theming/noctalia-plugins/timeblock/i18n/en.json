@@ -1,0 +1,60 @@
+{
+  "bar": {
+    "empty": "No schedule",
+    "unscheduled": "Unscheduled",
+    "left": "left",
+    "in": "in"
+  },
+  "panel": {
+    "title": "Time Blocks",
+    "add": "Add block",
+    "settings": "Widget Settings",
+    "now": "NOW",
+    "skip": "Skip",
+    "unskip": "Un-skip",
+    "empty-title": "No blocks scheduled today",
+    "empty-hint": "Add a block, or build a recurring template in Settings."
+  },
+  "action": {
+    "end-now": "End now",
+    "insert-now": "Insert now",
+    "push": "Push remaining",
+    "reset-today": "Reset today",
+    "save-template": "Save as template"
+  },
+  "editor": {
+    "new": "New block",
+    "edit": "Edit block",
+    "label": "Label",
+    "start": "Start",
+    "end": "End",
+    "color": "Color",
+    "repeat": "Repeat",
+    "notes": "Notes (optional)",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "warn-times": "End time must be after start — it will be nudged."
+  },
+  "block": {
+    "untitled": "New block",
+    "adhoc": "Ad-hoc"
+  },
+  "settings": {
+    "template-title": "Recurring template",
+    "template-desc": "The baseline day. Each day, today's schedule is generated from these blocks; editing today never changes this template.",
+    "template-empty": "No template blocks yet. Add blocks to define your standing day plan.",
+    "every-day": "Every day",
+    "weekdays": "Weekdays",
+    "never": "Never",
+    "notify": "Notify on block transitions",
+    "notify-desc": "Show a toast when the active block changes"
+  },
+  "toast": {
+    "title": "Time Blocks",
+    "now": "Now",
+    "unscheduled": "Unscheduled",
+    "reset-today": "Today reset from template",
+    "saved-template": "Template updated from today"
+  }
+}
