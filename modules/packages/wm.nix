@@ -17,7 +17,7 @@
     wl-kbptr
     wlrctl
     noctalia-qs
-    catppuccin-cursors.mochaMauve
+    catppuccin-cursors.mochaDark
     (catppuccin-gtk.override {
       variant = "mocha";
       accents = [ "mauve" ];

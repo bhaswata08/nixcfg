@@ -1,0 +1,16 @@
+onboarding = false
+[keys]
+prefix = "ctrl+s"
+
+# tmux: christoomey/vim-tmux-navigator handles this, no prefix needed
+focus_pane_left = "ctrl+h"
+focus_pane_down = "ctrl+j"
+focus_pane_up = "ctrl+k"
+focus_pane_right = "ctrl+l"
+
+split_vertical = "prefix+v"
+split_horizontal = "prefix+h"
+new_tab = "prefix+o"
+
+# toggle the side panel
+toggle_sidebar = "prefix+e"

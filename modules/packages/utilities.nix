@@ -16,7 +16,7 @@
     ffmpeg
     libXcursor
     fzf
-    kdePackages.ark
+    file-roller
     nautilus
     wl-clipboard
     keepassxc

@@ -8,8 +8,8 @@
   };
 
   home.pointerCursor = {
-    name = "catppuccin-mocha-mauve-cursors";
-    package = pkgs.catppuccin-cursors.mochaMauve;
+    name = "catppuccin-mocha-dark-cursors";
+    package = pkgs.catppuccin-cursors.mochaDark;
     size = 24;
     gtk.enable = true;
   };
@@ -24,7 +24,7 @@
 
   # Qt theming: Kvantum style driven by catppuccin (mocha/mauve). Setting
   # style.name = "kvantum" auto-installs the Kvantum engine for Qt5 + Qt6 and
-  # exports QT_STYLE_OVERRIDE=kvantum, which themes Qt apps (Ark, KeePassXC,
+  # exports QT_STYLE_OVERRIDE=kvantum, which themes Qt apps (KeePassXC,
   # Kdenlive). catppuccin.kvantum (autoEnabled) drops in the theme files.
   qt = {
     enable = true;
@@ -41,8 +41,8 @@
       name = lib.mkForce "Papirus-kanagawa";
     };
     cursorTheme = {
-      name = "catppuccin-mocha-mauve-cursors";
-      package = pkgs.catppuccin-cursors.mochaMauve;
+      name = "catppuccin-mocha-dark-cursors";
+      package = pkgs.catppuccin-cursors.mochaDark;
     };
     gtk3.extraConfig.gtk-application-prefer-dark-theme = true;
     gtk4.extraConfig.gtk-application-prefer-dark-theme = true;
