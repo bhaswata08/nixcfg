@@ -7,10 +7,17 @@ focus_pane_down = "prefix+j"
 focus_pane_up = "prefix+k"
 focus_pane_right = "prefix+l"
 
-split_vertical = "prefix+v"
-split_horizontal = "prefix+h"
-new_tab = "prefix+o"
-open_notification_target = "prefix+n"
+split_vertical = "prefix+|"
+split_horizontal = "prefix+-"
+new_tab = "prefix+n"
+
+# close the entire workspace (all its tabs and panes)
+close_workspace = "prefix+shift+x"
 
 # toggle the side panel
 toggle_sidebar = "prefix+e"
+
+previous_tab = "alt+p"
+next_tab = "alt+n"
+previous_workspace = "alt+comma"
+next_workspace = "alt+period"
