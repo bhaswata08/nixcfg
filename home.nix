@@ -10,6 +10,7 @@
     ./configs/theming/themes.nix
     ./configs/anyrun.nix
     ./configs/nushell.nix
+    ./configs/nvim.nix
     ./configs/herdr.nix
     ./configs/wezterm.nix
     ./configs/programs.nix

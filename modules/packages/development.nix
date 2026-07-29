@@ -47,6 +47,8 @@
     # Document and rendering
     mermaid-cli
     tectonic
+    python3Packages.pylatexenc # latex2text: renders $$..$$ math in render-markdown.nvim
+    markdownlint-cli2 # markdown linter surfaced via none-ls diagnostics
 
     # System and Desktop
     anyrun
