@@ -47,7 +47,16 @@
     # Document and rendering
     mermaid-cli
     tectonic
-    python3Packages.pylatexenc # latex2text: renders $$..$$ math in render-markdown.nvim
+    python3Packages.pylatexenc # latex2text: \mathscr->ℒ, \frac, \sum for render-markdown.nvim
+    python3Packages.unicodeit # LaTeX sub/superscripts -> unicode (₀ ² ⁽ᵏ⁾), which latex2text lacks
+    # render-markdown's latex `converter`: unicodeit first (handles _/^ + greek), then
+    # latex2text fills in \mathscr/\frac/\sum/\dots. Neither tool alone covers both; falls
+    # back to the raw input if unicodeit chokes so a formula is never dropped.
+    (writeShellScriptBin "latex2unicode" ''
+      in=$(cat)
+      uni=$(${pkgs.python3Packages.unicodeit}/bin/unicodeit "$in" 2>/dev/null) || uni=$in
+      printf '%s' "$uni" | ${pkgs.python3Packages.pylatexenc}/bin/latex2text -q
+    '')
     markdownlint-cli2 # markdown linter surfaced via none-ls diagnostics
 
     # System and Desktop
