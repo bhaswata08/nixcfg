@@ -16,7 +16,7 @@
     ffmpeg
     libXcursor
     fzf
-    kdePackages.ark
+    file-roller
     nautilus
     wl-clipboard
     keepassxc
@@ -43,6 +43,10 @@
     ventoy
     iptables
     nftables
+    cron
+    ngrok
+    apktool
+    javaPackages.compiler.openjdk17
   ];
 
   programs.appimage.enable = true;

@@ -25,3 +25,12 @@ def chafa [...args] {
     ^chafa ...$args
   }
 }
+
+def --env set-openrouter [key: string] {
+    load-env {
+        OPENROUTER_API_KEY: $key
+        ANTHROPIC_BASE_URL: "https://openrouter.ai/api"
+        ANTHROPIC_AUTH_TOKEN: $key
+    }
+    print "OpenRouter environment variables successfully loaded!"
+}

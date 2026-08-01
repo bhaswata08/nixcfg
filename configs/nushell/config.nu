@@ -233,11 +233,66 @@ $env.config = {
 
 
 # Hooks
+
+# --- herdr automatic tab naming -------------------------------------------------
+# Names the current herdr tab after the running command (e.g. `btop` -> "btop") and
+# resets to the current directory's basename at the prompt. If you manually rename a
+# tab (prefix+shift+t), the hook detects the change and stops auto-naming that tab for
+# the rest of the shell session, so your name sticks.
+def herdr-active [] {
+  ($env.HERDR_ENV? | default "" | is-not-empty) and ($env.HERDR_TAB_ID? | is-not-empty)
+}
+def herdr-statefile [] {
+  $nu.temp-dir | path join $"herdr-tabname-($env.HERDR_PANE_ID? | default $env.HERDR_TAB_ID | str replace --all ':' '_').nuon"
+}
+def herdr-tab-label [] {
+  try { herdr tab get $env.HERDR_TAB_ID | from json | get result.tab.label } catch { null }
+}
+def herdr-set-tab [name: string] {
+  if (not (herdr-active)) { return }
+  let sf = (herdr-statefile)
+  let st = (if ($sf | path exists) { open $sf } else { {managed: null, manual: false} })
+  if $st.manual { return }
+  let cur = (herdr-tab-label)
+  # Current label differs from the last name we set => user renamed it manually.
+  if ($st.managed != null) and ($cur != null) and ($cur != $st.managed) {
+    {managed: $st.managed, manual: true} | save -f $sf
+    return
+  }
+  if ($name | is-empty) or ($cur == $name) { return }
+  herdr tab rename $env.HERDR_TAB_ID $name | ignore
+  {managed: $name, manual: false} | save -f $sf
+}
+# Fresh baseline each shell start (a reused pane id must not inherit stale state).
+if (herdr-active) { try { rm --force (herdr-statefile) } }
+
+$env.config.hooks.pre_execution = (
+  $env.config.hooks.pre_execution | append {||
+    let name = (
+      commandline | str trim | split row " "
+      | where {|w| ($w | is-not-empty) and ($w | str contains "=") == false and $w != "sudo" and $w != "doas"}
+      | get -o 0 | default ""
+    )
+    herdr-set-tab $name
+  }
+)
+# At the prompt, reset to the current directory's basename. Replace the `let name`
+# expression with a fixed string (e.g. `let name = "nu"`) for a static idle name.
+$env.config.hooks.pre_prompt = (
+  $env.config.hooks.pre_prompt | append {||
+    let dir = ($env.PWD | path basename)
+    let name = (if ($dir | is-empty) { $env.PWD } else { $dir })
+    herdr-set-tab $name
+  }
+)
+# --------------------------------------------------------------------------------
+
 mkdir ($nu.data-dir | path join "vendor/autoload")
 starship init nu | save -f ($nu.data-dir | path join "vendor/autoload/starship.nu")
 source ~/.config/nushell/zoxide.nu
 source ~/.config/nushell/aliases.nu
 source ~/.config/nushell/completions.nu
+source ~/.config/nushell/customfunctions.nu
 # source ./zoxide.nu
 # source ./aliases.nu
 # source ./completions.nu

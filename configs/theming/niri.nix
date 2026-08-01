@@ -65,13 +65,14 @@
 
     environment {
         QT_QPA_PLATFORMTHEME "qt6ct";
-        XCURSOR_THEME "catppuccin-mocha-dark";
+        QT_STYLE_OVERRIDE "kvantum";
+        XCURSOR_THEME "catppuccin-mocha-dark-cursors";
         XCURSOR_SIZE "24";
-        GTK_CURSOR_THEME "catppuccin-mocha-mauve-standard"
+        GTK_CURSOR_THEME "catppuccin-mocha-dark-cursors"
     }
 
     cursor {
-        xcursor-theme "catppuccin-mocha-dark"
+        xcursor-theme "catppuccin-mocha-dark-cursors"
             xcursor-size 24
     }
 
