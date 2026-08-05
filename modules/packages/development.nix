@@ -1,5 +1,6 @@
 {
   pkgs,
+  lib,
   ...
 }:
 {
@@ -47,25 +48,28 @@
     # Document and rendering
     mermaid-cli
     tectonic
-    python3Packages.pylatexenc # latex2text: \mathscr->ℒ, \sum for render-markdown.nvim
-    python3Packages.unicodeit # LaTeX sub/superscripts -> unicode (₀ ² ⁽ᵏ⁾), which latex2text lacks
-    # render-markdown's latex `converter`. Both libraries are line-oriented, so matrices
-    # and \frac collapsed into an unreadable run of cells; this lays those out in 2D
-    # (tall brackets, stacked fractions) and calls the two libraries per leaf. Falls back
-    # to the flat conversion on any parse error so a formula is never dropped.
-    (writers.writePython3Bin "latex2unicode" {
-      libraries = with python3Packages; [
-        unicodeit
-        pylatexenc
-      ];
-      # E501 line length (the glyph tables read better wide); E203/W503 are the
-      # usual flake8-vs-black disagreements over slices and wrapped operators.
-      flakeIgnore = [
-        "E501"
-        "E203"
-        "W503"
-      ];
-    } (builtins.readFile ./latex2unicode.py))
+    python3Packages.pylatexenc # latex2text: the fallback converter latex2unicode defers to
+    # render-markdown's latex `converter`, laying formulas out in 2D (tall brackets,
+    # stacked fractions and limits). Was a pylatexenc + unicodeit Python script, but
+    # render-markdown converts every on-screen equation while blocking the UI thread,
+    # and each call spent ~50ms starting an interpreter to do ~1ms of work. Native
+    # startup cuts that to ~3ms per call, which measured as 124ms -> 66ms to open a
+    # notes file and is paid again on every scroll into unconverted equations.
+    (rustPlatform.buildRustPackage {
+      pname = "latex2unicode";
+      version = "0.1.0";
+      # Listed explicitly so a local `cargo build` leaving ./latex2unicode/target
+      # behind cannot end up in the store or change the derivation.
+      src = lib.fileset.toSource {
+        root = ./latex2unicode;
+        fileset = lib.fileset.unions [
+          ./latex2unicode/Cargo.toml
+          ./latex2unicode/Cargo.lock
+          ./latex2unicode/src
+        ];
+      };
+      cargoLock.lockFile = ./latex2unicode/Cargo.lock;
+    })
     markdownlint-cli2 # markdown linter surfaced via none-ls diagnostics
 
     # System and Desktop
