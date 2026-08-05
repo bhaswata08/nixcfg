@@ -1,0 +1,562 @@
+/* ==========================================================================
+   Custom reveal.js theme and slide archetypes.
+
+   This file replaces a stock reveal theme. It defines:
+     1. tokens      (colour, type scale, spacing)
+     2. base        (headings, lists, links, tables)
+     3. archetypes  (act opener, three beat, stage flow, stat row, callout)
+
+   Rules of thumb: one idea per slide, no slide smaller than 28px effective
+   type, and every claim from the running example lives in an .anchor box so
+   the audience always knows what is general and what is one team's choice.
+
+   See references/archetypes.md for what each class is for.
+   ========================================================================== */
+
+/* 1. tokens ------------------------------------------------------------- */
+
+:root {
+  --bg:        #12151b;
+  --bg-raised: #1a1f28;
+  --bg-sunken: #0d1015;
+
+  --ink:       #e9ebef;
+  --ink-dim:   #a7b0be;
+  --ink-faint: #6d7789;
+
+  --accent:      #f0a35e; /* amber. structure, headings, "you are here" */
+  --accent-soft: #f0a35e26;
+  --data:        #6fd0c0; /* teal. numbers and measured results */
+  --data-soft:   #6fd0c026;
+  --warn:        #e8798a; /* rose. failure modes, "what breaks" */
+  --warn-soft:   #e8798a26;
+
+  --rule: #2b3340;
+
+  /* Both families are vendored under lib/, see the links in index.html.
+     Do not rely on the system fallbacks, they render much heavier and the
+     slides stop fitting. */
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Menlo", monospace;
+}
+
+/* 2. base --------------------------------------------------------------- */
+
+.reveal {
+  font-family: var(--font-sans);
+  font-size: 30px;
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+}
+
+.reveal-viewport { background: var(--bg); }
+
+/* Reveal's own vertical centring is off (see center:false in index.html), so
+   the height chain has to be explicit: the stage is full height, and so is
+   every slide in it. That is what lets .title-slide centre itself and lets
+   .takeaway pin to the bottom edge. */
+.reveal .slides { text-align: left; height: 100%; }
+.reveal .slides section { height: 100%; box-sizing: border-box; }
+
+.reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+  font-family: var(--font-sans);
+  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0 0 0.5em 0;
+  text-transform: none;
+  text-shadow: none;
+}
+
+.reveal h1 { font-size: 2.1em; }
+.reveal h2 { font-size: 1.5em; }
+.reveal h3 { font-size: 1.15em; }
+.reveal h4 { font-size: 0.95em; color: var(--ink-dim); font-weight: 500; }
+
+.reveal p  { line-height: 1.45; margin: 0 0 0.7em 0; }
+.reveal ul, .reveal ol { display: block; margin-left: 1.1em; }
+.reveal li { line-height: 1.4; margin-bottom: 0.45em; }
+.reveal li::marker { color: var(--accent); }
+
+.reveal strong { color: #fff; font-weight: 600; }
+.reveal em { color: var(--accent); font-style: normal; font-weight: 500; }
+
+.reveal a { color: var(--data); text-decoration: none; border-bottom: 1px solid var(--data-soft); }
+
+.reveal code { font-family: var(--font-mono); font-size: 0.85em; color: var(--data); }
+
+.reveal .slide-number { color: var(--ink-faint); background: none; font-size: 0.5em; }
+
+/* muted supporting text, used for asides and source lines */
+.reveal .muted { color: var(--ink-dim); }
+.reveal .small { font-size: 0.72em; }
+.reveal .src {
+  color: var(--ink-faint);
+  font-size: 0.55em;
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
+
+/* 3. archetypes --------------------------------------------------------- */
+
+/* --- 3.1 act tag: the "you are here" ribbon ---------------------------- */
+
+.reveal .act-tag {
+  position: absolute;
+  top: -0.2em;
+  left: 0;
+  font-size: 0.5em;
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.reveal .act-tag b { color: var(--accent); font-weight: 500; }
+
+/* Content slides are flex columns: the ribbon sits above, the body flows from
+   the top, and anything with margin-top:auto (the .takeaway strip) pins to the
+   bottom edge instead of leaving a dead band there. */
+/* The !important is load bearing. Reveal writes display:block as an inline
+   style on whichever slide is showing, which beats a plain class rule and
+   silently kills every flex layout below. Same for .act-open and .title-slide. */
+.reveal section.act-body {
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 2.2em;
+  padding-bottom: 1em;
+}
+
+/* --- 3.2 act opener ---------------------------------------------------- */
+
+.reveal section.act-open {
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+}
+.reveal .act-open .act-num {
+  font-family: var(--font-mono);
+  font-size: 0.6em;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.6em;
+}
+.reveal .act-open h1 { margin-bottom: 0.3em; }
+.reveal .act-open .act-sub { color: var(--ink-dim); font-size: 0.85em; max-width: 22em; }
+.reveal .act-open .act-time {
+  margin-top: 1.4em;
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--ink-faint);
+}
+
+/* --- 3.3 three beat: for / breaks / olmo ------------------------------- */
+
+.reveal .beats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.9em; margin-top: 0.6em; }
+.reveal .beats.two { grid-template-columns: repeat(2, 1fr); }
+/* Four cards only works if each is a title and one short line. */
+.reveal .beats.four { grid-template-columns: repeat(4, 1fr); gap: 0.7em; }
+.reveal .beats.four .beat { padding: 0.7em 0.8em; }
+.reveal .beats.four p { font-size: 0.62em; }
+/* .no is rose, so it means "the failure mode". For a neutral second line that
+   is just detail, use .note instead, or the colour code stops meaning anything. */
+.reveal .beat .no { display: block; margin-top: 0.5em; color: var(--warn); font-size: 0.62em; }
+.reveal .beat .note { display: block; margin-top: 0.5em; color: var(--ink-faint); font-size: 0.62em; }
+.reveal .beat {
+  background: var(--bg-raised);
+  border-top: 3px solid var(--rule);
+  border-radius: 3px;
+  padding: 0.8em 0.9em;
+  font-size: 0.72em;
+  line-height: 1.4;
+}
+.reveal .beat h4 {
+  font-family: var(--font-mono);
+  font-size: 0.72em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.6em;
+}
+.reveal .beat.purpose { border-top-color: var(--accent); }
+.reveal .beat.purpose h4 { color: var(--accent); }
+.reveal .beat.breaks  { border-top-color: var(--warn); }
+.reveal .beat.breaks h4 { color: var(--warn); }
+.reveal .beat.anchor    { border-top-color: var(--data); }
+.reveal .beat.anchor h4 { color: var(--data); }
+
+/* --- 3.4 olmo callout: "what one team actually did" -------------------- */
+
+.reveal .anchor {
+  background: var(--data-soft);
+  border-left: 3px solid var(--data);
+  border-radius: 0 3px 3px 0;
+  padding: 0.7em 0.9em;
+  font-size: 0.78em;
+  line-height: 1.4;
+}
+.reveal .anchor h4 {
+  font-family: var(--font-mono);
+  font-size: 0.68em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--data);
+  margin-bottom: 0.45em;
+}
+.reveal .anchor p:last-child { margin-bottom: 0; }
+
+/* --- 3.5 stat row: big measured numbers -------------------------------- */
+
+.reveal .stats { display: flex; gap: 1.4em; margin: 0.8em 0; }
+.reveal .stat .n {
+  font-size: 1.5em;
+  font-weight: 600;
+  color: var(--data);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.reveal .stat .l {
+  font-size: 0.6em;
+  color: var(--ink-dim);
+  line-height: 1.3;
+  margin-top: 0.4em;
+  max-width: 9em;
+}
+
+/* --- 3.5b equation plate: the one piece of arithmetic ------------------ */
+
+.reveal .eq {
+  background: var(--bg-raised);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.5em 0;
+  margin: 0.3em 0 0.9em 0;
+  text-align: center;
+}
+/* reset.css flattens sup, and the deck has exponents in prose. Put it back. */
+.reveal sup { font-size: 0.68em; vertical-align: super; line-height: 0; }
+
+/* Set in the deck's own mono face. If a talk has one or two equations, this is
+   enough, and pulling in a maths typesetter plus its font files for a handful
+   of glyphs is not worth it, least of all in the single file build. Reach for
+   KaTeX only when there is real notation to set. */
+.reveal .eq .f {
+  font-family: var(--font-mono);
+  font-size: 1.9em;
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+
+/* --- 3.6 stage flow: the three stage pipeline -------------------------- */
+
+.reveal .flow { display: flex; align-items: stretch; gap: 0; margin: 0.7em 0; }
+
+.reveal .stage {
+  flex: 1;
+  background: var(--bg-raised);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.7em 0.8em;
+  font-size: 0.62em;
+  line-height: 1.35;
+  transition: border-color 0.3s, background 0.3s;
+}
+.reveal .stage .k {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: 0.35em;
+}
+.reveal .stage .t { font-weight: 600; color: var(--ink); display: block; margin-bottom: 0.5em; font-size: 1.15em; }
+.reveal .stage .d { color: var(--ink-dim); }
+.reveal .stage .tok { color: var(--data); font-family: var(--font-mono); display: block; margin-top: 0.5em; }
+
+/* highlighted stage, used when an act zooms into one box */
+.reveal .stage.on { border-color: var(--accent); background: var(--accent-soft); }
+.reveal .stage.on .k { color: var(--accent); }
+
+.reveal .arrow {
+  align-self: center;
+  color: var(--ink-faint);
+  padding: 0 0.5em;
+  font-size: 0.8em;
+}
+
+/* context window bar under the flow */
+.reveal .ctx {
+  display: flex;
+  margin-top: 0.5em;
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--ink-faint);
+}
+.reveal .ctx div { flex: 1; text-align: center; }
+.reveal .ctx div span { color: var(--accent); }
+
+/* --- 3.7 two column ---------------------------------------------------- */
+
+.reveal .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4em; align-items: start; }
+.reveal .cols.wide-left  { grid-template-columns: 1.4fr 1fr; }
+.reveal .cols.wide-right { grid-template-columns: 1fr 1.4fr; }
+
+/* --- 3.8 tables -------------------------------------------------------- */
+
+.reveal table { width: 100%; border-collapse: collapse; font-size: 0.66em; margin: 0.5em 0; }
+.reveal table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  border-bottom: 1px solid var(--rule);
+  padding: 0.4em 0.6em 0.4em 0;
+}
+.reveal table td {
+  padding: 0.45em 0.6em 0.45em 0;
+  border-bottom: 1px solid var(--bg-raised);
+  color: var(--ink-dim);
+  vertical-align: top;
+}
+.reveal table td:first-child { color: var(--ink); }
+.reveal table td.num { font-family: var(--font-mono); color: var(--data); }
+
+/* --- 3.9 takeaway strip ------------------------------------------------ */
+
+/* Sits with the content block rather than pinned to the slide floor, so the
+   whole block stays optically centred. */
+.reveal .takeaway {
+  margin-top: 1.3em;
+  border-top: 1px solid var(--rule);
+  padding-top: 0.6em;
+  font-size: 0.7em;
+  color: var(--ink-dim);
+}
+.reveal .takeaway b { color: var(--accent); font-weight: 500; }
+
+/* --- 3.10 fragments ---------------------------------------------------- */
+
+.reveal .slides section .fragment.dim-in { opacity: 0.25; visibility: inherit; }
+.reveal .slides section .fragment.dim-in.visible { opacity: 1; }
+
+/* --- 3.11 title slide -------------------------------------------------- */
+
+.reveal section.title-slide {
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+}
+.reveal .title-slide .kicker {
+  font-family: var(--font-mono);
+  font-size: 0.55em;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 1em;
+}
+.reveal .title-slide h1 { font-size: 2.4em; margin-bottom: 0.35em; }
+.reveal .title-slide .lede {
+  color: var(--ink-dim);
+  font-size: 0.9em;
+  max-width: 24em;
+  margin-bottom: 1.6em;
+}
+.reveal .title-slide .byline {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9em;
+  font-size: 0.6em;
+  line-height: 1.6;
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  max-width: 24em;
+  margin: 0;
+}
+.reveal .title-slide .byline b { color: var(--ink); font-weight: 500; }
+
+/* --- 3.12 roadmap ------------------------------------------------------ */
+
+.reveal .roadmap {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  column-gap: 2em;
+  row-gap: 0.15em;
+  font-size: 0.6em;
+  margin-top: 0.4em;
+}
+.reveal .roadmap .row {
+  display: grid;
+  grid-template-columns: 2.2em 1fr 3em;
+  align-items: baseline;
+  padding: 0.28em 0;
+  border-bottom: 1px solid var(--bg-raised);
+  color: var(--ink-dim);
+}
+.reveal .roadmap .row .n {
+  font-family: var(--font-mono);
+  color: var(--ink-faint);
+  font-size: 0.85em;
+}
+.reveal .roadmap .row .m {
+  font-family: var(--font-mono);
+  color: var(--ink-faint);
+  font-size: 0.8em;
+  text-align: right;
+}
+/* the load bearing acts, where most of the time goes */
+.reveal .roadmap .row.key { color: var(--ink); }
+.reveal .roadmap .row.key .n { color: var(--accent); }
+.reveal .roadmap .row.key .m { color: var(--accent); }
+
+/* --- 3.14b say line: replaces a paragraph -------------------------------- */
+
+/* One sentence, said once, under a graphic. If a slide needs a second .say
+   the slide is doing two things and should be two slides. */
+
+.reveal .say {
+  font-size: 1.05em;
+  color: var(--ink);
+  max-width: 30em;
+  margin: 0.2em 0 0 0;
+}
+.reveal .say em { color: var(--accent); }
+
+/* --- 3.14c chip row: a light inline sequence ---------------------------- */
+
+/* Cheaper than .flow. Use when the sequence is the point and the boxes need
+   no description, e.g. Pretraining -> $$$ -> once. */
+
+/* Wraps rather than clips. A row of five chips overruns 1280px otherwise, and
+   the overflow is silent: the last chip just runs off the right edge. */
+.reveal .chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55em;
+  row-gap: 0.5em;
+  margin: 0.3em 0 0.8em 0;
+}
+.reveal .chips .c {
+  border: 1px solid var(--rule);
+  background: var(--bg-raised);
+  border-radius: 4px;
+  padding: 0.3em 0.75em;
+  font-size: 0.78em;
+  white-space: nowrap;
+}
+.reveal .chips .c.cost { color: var(--data); font-family: var(--font-mono); }
+.reveal .chips .c.hit  { border-color: var(--accent); color: var(--accent); }
+.reveal .chips .a { color: var(--ink-faint); font-size: 0.9em; }
+
+/* --- 3.14d magnitude bars ---------------------------------------------- */
+
+/* For "these numbers differ by orders of magnitude". Widths are set inline
+   and are on a log scale, so always label the slide as such. */
+
+.reveal .bars { display: flex; flex-direction: column; gap: 0.6em; margin: 0.7em 0; }
+.reveal .bar {
+  display: grid;
+  grid-template-columns: 11em 1fr 6em;
+  align-items: center;
+  gap: 0.9em;
+  font-size: 0.72em;
+}
+.reveal .bar .nm { color: var(--ink); }
+.reveal .bar .sub { display: block; color: var(--ink-faint); font-size: 0.8em; }
+/* Both are spans, so they need display:block or the fill collapses. */
+.reveal .bar .track { display: block; height: 1em; background: var(--bg-raised); border-radius: 2px; }
+.reveal .bar .fill { display: block; height: 100%; background: var(--data); border-radius: 2px; }
+.reveal .bar .v { font-family: var(--font-mono); color: var(--data); text-align: right; }
+.reveal .bar.other .fill { background: var(--accent); }
+.reveal .bar.other .v { color: var(--accent); }
+
+/* Funnel variant: what survived in teal, what was thrown away in rose beside
+   it. Widths here are linear, not log, because the collapse is the point. */
+.reveal .bar .track.split { display: flex; }
+.reveal .bar .cut {
+  flex: 1;
+  height: 100%;
+  background: var(--warn-soft);
+  border-left: 1px solid var(--warn);
+  border-radius: 0 2px 2px 0;
+}
+
+/* --- 3.14f layer stack ------------------------------------------------- */
+
+/* A row of boxes standing for the layers of a transformer, so a pattern that
+   repeats down the depth of the model can be seen rather than described. */
+
+.reveal .layers { display: flex; gap: 3px; margin: 0.7em 0 0.3em 0; }
+.reveal .layers .ly {
+  flex: 1;
+  height: 2.4em;
+  border-radius: 2px;
+  background: var(--bg-raised);
+  border: 1px solid var(--rule);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.45em;
+  color: var(--ink-faint);
+}
+.reveal .layers .ly.full { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.reveal .layers .ly.last { background: var(--data-soft); border-color: var(--data); color: var(--data); }
+
+/* --- 3.15 figure plate ------------------------------------------------- */
+
+/* For figures quoted from a paper. They come on a light background, so we
+   mount them on a white card rather than fighting them onto the dark slide.
+   The plate reads as "this is someone else's artefact", which is honest. */
+
+.reveal .plate {
+  background: #fff;
+  border-radius: 6px;
+  padding: 0.5em;
+  margin: 0.4em 0;
+  box-shadow: 0 2px 24px #0006;
+}
+.reveal .plate img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 0;
+  box-shadow: none;
+  margin: 0;
+}
+
+/* --- 3.14 question list, for the promise slide ------------------------- */
+
+.reveal .qlist { counter-reset: q; margin-top: 0.5em; }
+.reveal .qlist li {
+  list-style: none;
+  position: relative;
+  padding-left: 1.8em;
+  margin-bottom: 0.7em;
+  font-size: 0.85em;
+}
+.reveal .qlist li::before {
+  counter-increment: q;
+  content: counter(q);
+  position: absolute;
+  left: 0;
+  top: 0.1em;
+  font-family: var(--font-mono);
+  font-size: 0.7em;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  width: 1.9em;
+  height: 1.9em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

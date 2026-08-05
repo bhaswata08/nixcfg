@@ -15,6 +15,8 @@ alias clear = clear -k
 alias c = clear
 alias du = dust
 
+alias cc = claude
+
 alias nv = nvim
 alias snv = steam-run nvim
 alias man = tldr
