@@ -339,9 +339,15 @@ Item {
     var out = []
     for (var i = 0; i < rawToday.length; i++) {
       var b = rawToday[i]
-      if (b.skipped) continue
+      if (b.skipped) {
+        // Skipped blocks are not in the new template, so they came from nothing.
+        b.templateId = ""
+        continue
+      }
+      var tid = genId()
+      b.templateId = tid
       out.push({
-        "id": genId(),
+        "id": tid,
         "label": b.label,
         "start": b.start,
         "end": b.end,
@@ -351,8 +357,8 @@ Item {
       })
     }
     rawTemplate = sortBlocks(out)
-    // Re-link today's blocks to the fresh template ids by matching order.
     saveTemplate()
+    saveToday()
     if (pluginApi)
       ToastService.showNotice(pluginApi.tr("toast.title") || "Time Blocks",
                               pluginApi.tr("toast.saved-template") || "Template updated from today", "device-floppy")

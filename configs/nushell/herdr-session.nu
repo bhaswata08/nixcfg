@@ -26,7 +26,10 @@ def claude-project-dir [cwd: string]: nothing -> string {
 def claude-sessions [cwd: string]: nothing -> list<string> {
     let dir = (claude-project-dir $cwd)
     if not ($dir | path exists) { return [] }
-    ls $"($dir)/*.jsonl"
+    # `ls` on a glob with no matches is an error, not an empty list.
+    let files = (try { ls $"($dir)/*.jsonl" } catch { [] })
+    if ($files | is-empty) { return [] }
+    $files
     | sort-by modified --reverse
     | get name
     | each { |f| $f | path parse | get stem }
