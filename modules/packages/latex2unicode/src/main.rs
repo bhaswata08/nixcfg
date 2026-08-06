@@ -66,9 +66,12 @@ const LARGE_OPS: &[&str] = &[
     "\\argmin",
 ];
 
-/// `\limits` and `\nolimits` only modify how the operator before them places its
-/// scripts, so they must not become the base themselves.
-const LIMIT_MODIFIERS: &[&str] = &["\\limits", "\\nolimits"];
+/// `\limits` asks the operator before it to stack its scripts, so the tracked
+/// base must survive it.
+const KEEPS_LIMITS: &str = "\\limits";
+/// `\nolimits` asks for the opposite, so it drops the base and lets an
+/// unmappable script be hidden from the layout pass like any ordinary script.
+const DROPS_LIMITS: &str = "\\nolimits";
 
 /// Whether a rendered script has to be stacked because it cannot be written
 /// inline. That is the case when no character of the body has a Unicode sub or
@@ -77,8 +80,7 @@ const LIMIT_MODIFIERS: &[&str] = &["\\limits", "\\nolimits"];
 /// and second-guessing it there costs more than it fixes.
 fn must_stack(rendered: &str, up: bool) -> bool {
     let from = if up { SUP_FROM } else { SUB_FROM };
-    let mut chars = rendered.chars().peekable();
-    chars.peek().is_some() && chars.all(|c| !from.contains(c))
+    !rendered.is_empty() && !rendered.chars().any(|c| from.contains(c))
 }
 
 /// Read the script body starting at `chars[i]`: a brace group, a `\command`, or
@@ -135,8 +137,10 @@ fn protect_scripts(src: &str) -> String {
             if c == '\\' {
                 let (cmd, next) = read_body(&chars, i).unwrap_or((c.to_string(), i + 1));
                 out.push_str(&cmd);
-                if !LIMIT_MODIFIERS.contains(&cmd.as_str()) {
-                    base = cmd;
+                match cmd.as_str() {
+                    KEEPS_LIMITS => {}
+                    DROPS_LIMITS => base.clear(),
+                    _ => base = cmd,
                 }
                 i = next;
                 continue;
