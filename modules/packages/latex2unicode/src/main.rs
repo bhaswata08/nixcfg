@@ -3,8 +3,7 @@
 //! This is render-markdown.nvim's `latex` converter. It replaces a pylatexenc +
 //! unicodeit Python script: the conversion itself only took ~1ms, but each call
 //! paid ~50ms of interpreter startup, and render-markdown blocks the UI thread
-//! while every equation in the buffer converts. A native binary starts in ~1ms,
-//! which takes an 80-equation buffer from ~550ms to ~40ms.
+//! while every on-screen equation converts. A native binary starts in ~1ms.
 //!
 //! `term-maths` does the 2D layout (fractions, matrices, tall brackets, stacked
 //! limits). `unicodeit` covers plain symbol substitution for anything the layout
@@ -14,32 +13,166 @@
 use std::io::{self, Read, Write};
 use std::panic;
 
+/// Above this many bytes, skip the 2D layout entirely. term-maths cost grows
+/// superlinearly (measured: 1KB 20ms, 2KB 60ms, 4KB 210ms, 8KB 750ms) and
+/// render-markdown converts on the UI thread, so a formula-shaped blob pasted
+/// into `$$ ... $$` would freeze Neovim. Symbol substitution is flat-cost and
+/// stays readable. Real equations are far below this.
+const LAYOUT_LIMIT: usize = 1024;
+
+/// term-maths reads `_` and `^` as layout operators and stacks a script it
+/// cannot map onto its own line. Swapping the operator for a private-use
+/// character hides it from the layout pass; it survives rendering untouched and
+/// is swapped back afterwards.
+const SUB_MARK: char = '\u{E000}';
+const SUP_MARK: char = '\u{E001}';
+/// Same trick for `:=`, which the layout otherwise splits into `: =`.
+const WALRUS_MARK: char = '\u{E002}';
+
+/// Characters that have a Unicode subscript or superscript form. Anything
+/// outside these cannot be written inline, which is what the old Python
+/// converter used to decide between an inline and a stacked script. Only
+/// membership matters here; term-maths performs the substitution itself.
+const SUP_FROM: &str = "0123456789+-=()abcdefghijklmnoprstuvwxyz\u{2212}\u{00D7}";
+const SUB_FROM: &str = "0123456789+-=()aehijklmnoprstuvx\u{2212}";
+
+/// Operators whose scripts are limits and belong above and below the symbol.
+/// Stacking those is correct display style, so their scripts are never hidden
+/// from the layout pass.
+const LARGE_OPS: [&str; 10] = [
+    "\\int", "\\iint", "\\iiint", "\\oint", "\\sum", "\\prod", "\\coprod", "\\lim", "\\bigcup",
+    "\\bigcap",
+];
+
+/// Whether a rendered script has to be stacked because it cannot be written
+/// inline. Only a lone symbol qualifies: term-maths already renders longer or
+/// nested bodies inline correctly (`e^{-x^2}` -> `e⁻ˣ²`), and second-guessing
+/// it there costs more than it fixes.
+fn must_stack(rendered: &str, up: bool) -> bool {
+    let from = if up { SUP_FROM } else { SUB_FROM };
+    let mut chars = rendered.chars();
+    match (chars.next(), chars.next()) {
+        (Some(c), None) => !from.contains(c),
+        _ => false,
+    }
+}
+
+/// Read the script body starting at `chars[i]`: a brace group, a `\command`, or
+/// a single character. Returns the body without braces and the next index.
+fn read_body(chars: &[char], i: usize) -> Option<(String, usize)> {
+    match chars.get(i)? {
+        '{' => {
+            let mut depth = 0usize;
+            let mut body = String::new();
+            for (offset, &c) in chars[i..].iter().enumerate() {
+                match c {
+                    '{' => {
+                        depth += 1;
+                        if depth > 1 {
+                            body.push(c);
+                        }
+                    }
+                    '}' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            return Some((body, i + offset + 1));
+                        }
+                        body.push(c);
+                    }
+                    _ => body.push(c),
+                }
+            }
+            None
+        }
+        '\\' => {
+            let mut end = i + 1;
+            while chars.get(end).is_some_and(|c| c.is_ascii_alphabetic()) {
+                end += 1;
+            }
+            Some((chars[i..end].iter().collect(), end))
+        }
+        c => Some((c.to_string(), i + 1)),
+    }
+}
+
+/// Hide scripts term-maths would stack, so they stay on one line. Scripts it can
+/// render inline are left exactly as written, since it already handles those.
+fn protect_scripts(src: &str) -> String {
+    let chars: Vec<char> = src.chars().collect();
+    let mut out = String::with_capacity(src.len());
+    let mut i = 0;
+    // The symbol the current script attaches to. Scripts do not update it, so
+    // both halves of `\int_0^\infty` still see `\int` as their base.
+    let mut base = String::new();
+
+    while i < chars.len() {
+        let c = chars[i];
+        if c != '_' && c != '^' {
+            if c == '\\' {
+                let (cmd, next) = read_body(&chars, i).unwrap_or((c.to_string(), i + 1));
+                out.push_str(&cmd);
+                base = cmd;
+                i = next;
+                continue;
+            }
+            if !c.is_whitespace() {
+                base = c.to_string();
+            }
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        let up = c == '^';
+        let Some((body, next)) = read_body(&chars, i + 1) else {
+            out.push(c);
+            i += 1;
+            continue;
+        };
+        // Resolve \theta -> θ first: what matters is whether the *rendered*
+        // script can sit inline, not whether the LaTeX source can.
+        let rendered = unicodeit::replace(&body);
+        if must_stack(&rendered, up) && !LARGE_OPS.contains(&base.as_str()) {
+            out.push(if up { SUP_MARK } else { SUB_MARK });
+            out.push_str(&rendered);
+        } else {
+            out.extend(&chars[i..next]);
+        }
+        i = next;
+    }
+    out
+}
+
 /// Layout via term-maths, falling back to flat symbol substitution when it
 /// yields nothing. Panics are treated as a parse failure so a malformed formula
 /// degrades instead of killing the process.
 fn convert(src: &str) -> Option<String> {
-    let laid_out = panic::catch_unwind(|| term_maths::render(src).to_string()).ok();
+    if src.len() > LAYOUT_LIMIT {
+        let flat = unicodeit::replace(src);
+        return (!flat.trim().is_empty()).then_some(flat);
+    }
+
+    let prepared = protect_scripts(src).replace(":=", &WALRUS_MARK.to_string());
+    let laid_out = panic::catch_unwind(|| term_maths::render(&prepared).to_string()).ok();
 
     if let Some(text) = laid_out {
+        let text = text
+            .replace(SUB_MARK, "_")
+            .replace(SUP_MARK, "^")
+            .replace(WALRUS_MARK, ":=");
         if !text.trim().is_empty() {
             return Some(text);
         }
     }
 
     let flat = unicodeit::replace(src);
-    if flat.trim().is_empty() {
-        None
-    } else {
-        Some(flat)
-    }
+    (!flat.trim().is_empty()).then_some(flat)
 }
 
 /// Drop trailing spaces the grid layout pads with. render-markdown measures the
 /// widest line to align the block, so trailing blanks would offset it.
 fn trim_grid(text: &str) -> String {
     let lines: Vec<&str> = text.lines().map(str::trim_end).collect();
-    let last = lines.iter().rposition(|line| !line.is_empty());
-    match last {
+    match lines.iter().rposition(|line| !line.is_empty()) {
         Some(end) => lines[..=end].join("\n"),
         None => String::new(),
     }
