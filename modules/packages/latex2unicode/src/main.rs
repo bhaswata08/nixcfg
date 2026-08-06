@@ -39,22 +39,46 @@ const SUB_FROM: &str = "0123456789+-=()aehijklmnoprstuvx\u{2212}";
 /// Operators whose scripts are limits and belong above and below the symbol.
 /// Stacking those is correct display style, so their scripts are never hidden
 /// from the layout pass.
-const LARGE_OPS: [&str; 10] = [
-    "\\int", "\\iint", "\\iiint", "\\oint", "\\sum", "\\prod", "\\coprod", "\\lim", "\\bigcup",
+const LARGE_OPS: &[&str] = &[
+    "\\int",
+    "\\iint",
+    "\\iiint",
+    "\\oint",
+    "\\sum",
+    "\\prod",
+    "\\coprod",
+    "\\lim",
+    "\\limsup",
+    "\\liminf",
+    "\\bigcup",
     "\\bigcap",
+    "\\bigoplus",
+    "\\bigotimes",
+    "\\bigodot",
+    "\\bigsqcup",
+    "\\bigvee",
+    "\\bigwedge",
+    "\\max",
+    "\\min",
+    "\\sup",
+    "\\inf",
+    "\\argmax",
+    "\\argmin",
 ];
 
+/// `\limits` and `\nolimits` only modify how the operator before them places its
+/// scripts, so they must not become the base themselves.
+const LIMIT_MODIFIERS: &[&str] = &["\\limits", "\\nolimits"];
+
 /// Whether a rendered script has to be stacked because it cannot be written
-/// inline. Only a lone symbol qualifies: term-maths already renders longer or
-/// nested bodies inline correctly (`e^{-x^2}` -> `e⁻ˣ²`), and second-guessing
-/// it there costs more than it fixes.
+/// inline. That is the case when no character of the body has a Unicode sub or
+/// superscript form. A body that mixes mappable and unmappable characters is
+/// left alone: term-maths renders those inline already (`e^{-x^2}` -> `e⁻ˣ²`),
+/// and second-guessing it there costs more than it fixes.
 fn must_stack(rendered: &str, up: bool) -> bool {
     let from = if up { SUP_FROM } else { SUB_FROM };
-    let mut chars = rendered.chars();
-    match (chars.next(), chars.next()) {
-        (Some(c), None) => !from.contains(c),
-        _ => false,
-    }
+    let mut chars = rendered.chars().peekable();
+    chars.peek().is_some() && chars.all(|c| !from.contains(c))
 }
 
 /// Read the script body starting at `chars[i]`: a brace group, a `\command`, or
@@ -111,7 +135,9 @@ fn protect_scripts(src: &str) -> String {
             if c == '\\' {
                 let (cmd, next) = read_body(&chars, i).unwrap_or((c.to_string(), i + 1));
                 out.push_str(&cmd);
-                base = cmd;
+                if !LIMIT_MODIFIERS.contains(&cmd.as_str()) {
+                    base = cmd;
+                }
                 i = next;
                 continue;
             }
