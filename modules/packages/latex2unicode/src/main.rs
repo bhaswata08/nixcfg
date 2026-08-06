@@ -235,3 +235,83 @@ fn main() {
         std::process::exit(1);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// What a caller actually receives on stdout for `src`.
+    fn render(src: &str) -> String {
+        trim_grid(&convert(src).expect("converter produced no output"))
+    }
+
+    fn line_count(src: &str) -> usize {
+        render(src).lines().count()
+    }
+
+    #[test]
+    fn unmappable_script_stays_on_one_line() {
+        // Unicode has no subscript theta, so the layout used to move it to a
+        // second line and strand it away from the `h` it belongs to.
+        assert_eq!(render(r"h_\theta(x)"), "h_θ(x)");
+        assert_eq!(render(r"x_{\alpha}"), "x_α");
+        // Several unmappable characters behave the same as one.
+        assert_eq!(render(r"x_{\mu\nu}"), "x_μν");
+    }
+
+    #[test]
+    fn walrus_is_not_split() {
+        assert_eq!(render("a := b"), "a := b");
+    }
+
+    #[test]
+    fn mappable_scripts_are_left_to_the_layout() {
+        assert_eq!(render("x_i"), "xᵢ");
+        assert_eq!(render("x_{ij}"), "xᵢⱼ");
+        assert_eq!(render("x^{(i)}"), "x⁽ⁱ⁾");
+        assert_eq!(render(r"\alpha^2 + \beta_{ij} \le \gamma"), "α² + βᵢⱼ ≤ γ");
+    }
+
+    #[test]
+    fn large_operators_keep_stacked_limits() {
+        // Limits belong above and below the operator, so these must stay 2D
+        // even though theta cannot be written inline.
+        assert!(line_count(r"\sum_\theta f") > 1);
+        assert!(line_count(r"\int_0^\infty f") > 1);
+        assert!(line_count(r"\max_\theta f") > 1);
+        assert!(line_count(r"\bigoplus_\alpha X") > 1);
+    }
+
+    #[test]
+    fn limits_and_nolimits_are_opposites() {
+        // `\limits` keeps the operator's stacking; `\nolimits` asks for inline.
+        assert!(line_count(r"\sum\limits_\theta f") > 1);
+        assert_eq!(line_count(r"\sum\nolimits_\theta f"), 1);
+    }
+
+    #[test]
+    fn oversized_input_skips_the_layout_pass() {
+        // term-maths cost grows superlinearly, and render-markdown converts on
+        // the UI thread, so past the cap the flat substitution runs instead.
+        let big = "x + ".repeat(LAYOUT_LIMIT) + "y";
+        assert!(big.len() > LAYOUT_LIMIT);
+
+        let start = std::time::Instant::now();
+        let out = render(&big);
+        // The layout pass takes seconds at this size; substitution is immediate.
+        assert!(
+            start.elapsed() < std::time::Duration::from_secs(1),
+            "oversized input took {:?}, layout pass was not skipped",
+            start.elapsed()
+        );
+        assert!(out.contains('x'));
+        assert_eq!(out.lines().count(), 1);
+    }
+
+    #[test]
+    fn malformed_input_does_not_panic() {
+        for src in [r"\frac{", "x^{2", r"\foobarbaz{x}", "hello world"] {
+            let _ = convert(src);
+        }
+    }
+}
