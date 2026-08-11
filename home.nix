@@ -12,6 +12,7 @@
     ./configs/claude.nix
     ./configs/nushell.nix
     ./configs/nvim.nix
+    ./configs/obsidian.nix
     ./configs/herdr.nix
     ./configs/wezterm.nix
     ./configs/programs.nix
