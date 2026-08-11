@@ -63,11 +63,11 @@
         position x=0 y=0
     }
 
+    // QT_QPA_PLATFORMTHEME, QT_STYLE_OVERRIDE, XCURSOR_THEME and XCURSOR_SIZE
+    // are set once in modules/environment.nix, which reaches ly and the TTY too.
+    // Repeating them here only created a second copy that would win silently if
+    // the two ever drifted.
     environment {
-        QT_QPA_PLATFORMTHEME "qt6ct";
-        QT_STYLE_OVERRIDE "kvantum";
-        XCURSOR_THEME "catppuccin-mocha-dark-cursors";
-        XCURSOR_SIZE "24";
         GTK_CURSOR_THEME "catppuccin-mocha-dark-cursors"
     }
 

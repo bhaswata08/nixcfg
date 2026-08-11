@@ -19,7 +19,9 @@
     sunsetr
     wl-kbptr
     wlrctl
-    noctalia-qs
+    # No noctalia-qs: it ships `qs`/`quickshell`, not noctalia-shell. The shell
+    # comes from the noctalia flake input and carries its own quickshell build,
+    # so this only added a second, unused quickshell to the closure.
     catppuccin-cursors.mochaDark
     (catppuccin-gtk.override {
       variant = "mocha";

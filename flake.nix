@@ -15,8 +15,19 @@
       url = "github:youwen5/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    pfm.url = "github:bhaswata08/pfm";
-    kidex.url = "github:Kirottu/kidex";
+    # Both of these default to their own pinned nixpkgs. kidex additionally
+    # pinned its own home-manager. Left alone they pulled a June 2025 nixpkgs
+    # and home-manager into the lock, so the system evaluated two nixpkgs trees
+    # and built kidex against a 14-month-old one.
+    pfm = {
+      url = "github:bhaswata08/pfm";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    kidex = {
+      url = "github:Kirottu/kidex";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.home-manager.follows = "home-manager";
+    };
 
     qml-niri = {
       url = "github:imiric/qml-niri/main";
@@ -34,11 +45,8 @@
     };
   };
 
-  outputs = 
+  outputs =
     inputs:
-    let
-      pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
-    in
     {
       nixosConfigurations.frosties = inputs.nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
@@ -78,16 +86,8 @@
         ];
       };
 
-      homeConfigurations."bhaswata" = inputs.home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
-        specialArgs = {
-          inherit inputs;
-        };
-        modules = [
-          inputs.noctalia.homeModules.default
-          inputs.catppuccin.homeModules.catppuccin
-          ./home.nix
-        ];
-      };
+      # No standalone homeConfigurations output. home.nix is already applied
+      # through the home-manager NixOS module above, which is what `just switch`
+      # runs; a second entry point nothing exercised would only rot.
     };
 }

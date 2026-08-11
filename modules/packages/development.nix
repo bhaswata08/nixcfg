@@ -27,7 +27,9 @@
     rustfmt
 
     # Version Control and Editors
-    vim
+    # No `vim`: EDITOR is nvim and nothing here calls it, while the package
+    # installs a gvim.desktop pointing at a gvim binary it does not ship, which
+    # then shows up as a dead entry in every "Open With" list.
     neovim
     git
     git-lfs

@@ -42,8 +42,8 @@
     ventoy
     iptables
     nftables
-    cron
     ngrok
+    file
   ];
 
   programs.appimage.enable = true;
