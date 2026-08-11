@@ -5,6 +5,9 @@
 {
   environment.systemPackages = with pkgs; [
     wallust
+    # Bound to XF86MonBrightnessUp/Down in configs/theming/niri.nix, which had
+    # no matching package, so the brightness keys did nothing.
+    brightnessctl
     xwayland-satellite
     wezterm
     awww
