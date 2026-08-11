@@ -14,7 +14,17 @@
     stylua
     luajit
     luarocks
-    rustup
+
+    # Rust from nixpkgs rather than rustup. rustup's shims resolved to
+    # toolchains with no manifests, so cargo/rustc failed outright and
+    # rust-analyzer fell back to its own shim and recursed forever. This also
+    # matches how every other LSP server here is provided (see lsp.lua).
+    # For a per-project nightly, use a devshell or oxalica's rust-overlay.
+    rustc
+    cargo
+    rust-analyzer
+    clippy
+    rustfmt
 
     # Version Control and Editors
     vim
