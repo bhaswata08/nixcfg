@@ -83,7 +83,7 @@
 
 # Mess
     opencode
-    antigravity
+    antigravity-ide
     claude-code
     gh
     flyctl

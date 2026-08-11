@@ -57,6 +57,6 @@ logs/
 # Backup files
 *.bak
 *.backup
-*.txt
-*.xml
-hardware-configuration.nix
+
+# hardware-configuration.nix is tracked on purpose: configuration.nix imports
+# it, so a fresh clone cannot evaluate without it.

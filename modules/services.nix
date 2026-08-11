@@ -40,6 +40,7 @@
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
   services.flatpak.enable = true;
-  services.xserver.enable = true;
-  services.xserver.desktopManager.xfce.enable = true;
+  # No services.xserver here. niri is the only session, ly is a TTY greeter,
+  # and X11 clients reach the compositor through xwayland-satellite (started
+  # from configs/theming/niri.nix), so nothing needs a real X server.
 }

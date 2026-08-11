@@ -7,7 +7,6 @@
       url = "github:catppuccin/nix";
       inputs.nixpkgs.follows = "nixpkgs"; 
     };
-    uwu-colors.url = "github:q60/uwu_colors";
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -26,11 +25,6 @@
 
     noctalia = {
       url = "github:noctalia-dev/noctalia/legacy-v4";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    stylix = {
-      url = "github:nix-community/stylix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -60,8 +54,9 @@
               "flakes"
             ];
           }
-          inputs.stylix.nixosModules.stylix
-          inputs.catppuccin.nixosModules.catppuccin
+          # Only the home-manager catppuccin module is used (configs/theming/
+          # themes.nix). The NixOS one stayed at catppuccin.enable = false, so
+          # it themed nothing and only emitted a deprecation warning.
           inputs.home-manager.nixosModules.home-manager
           ./configuration.nix
           {
