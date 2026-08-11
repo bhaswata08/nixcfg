@@ -164,16 +164,18 @@
     }
 
     spawn-at-startup "awww-daemon"
-    spawn-at-startup "wallust" "run" "-n" "./wallpapers/bg-12.png"
+    // No "wallust run" here on purpose: its template target is
+    // ~/.config/wallust/wezterm/colors-wezterm.toml, the hand-tuned file that
+    // configs/wezterm.nix treats as the source of truth. Regenerate by hand
+    // when you actually want new colors.
     spawn-at-startup "noctalia-shell"
     spawn-at-startup "xwayland-satellite"
     spawn-at-startup "systemctl" "--user" "start" "hyprpolkitagent"
-    spawn-at-startup "mpd"
     spawn-at-startup "nm-applet"
     spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
     spawn-at-startup "blueman-applet"
     spawn-at-startup "sunsetr"
-    spawn-at-startup "swaync"
+    // Notifications are owned by noctalia-shell; swaync is not started.
     // TODO: Change to quickshell
     // spawn-at-startup "waybar"
 

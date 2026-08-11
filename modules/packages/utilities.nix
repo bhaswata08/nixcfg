@@ -7,7 +7,6 @@
     wget
     tmux
     eza
-    swaynotificationcenter
     man
     yt-dlp
     tlrc
