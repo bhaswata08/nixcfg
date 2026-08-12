@@ -15,9 +15,10 @@
  * The sidebar holds one circle per mode, in `modi` order: drun, filebrowser,
  * window, run.
  *
- * Note: `inputbar` is disabled, which is what gives the reference screenshot
- * its clean look, but it also means typing filters the list with no visible
- * search field. Set `enabled: true` below to get the field back.
+ * The other change: HyDE disables `inputbar`, so typing filters the list with
+ * nothing on screen showing what was typed. The field is enabled here and sits
+ * above the list, styled like the one in runner.rasi so both launchers read
+ * the same way.
  */
 
 @import "~/.config/rofi/colors.rasi"
@@ -36,7 +37,9 @@ configuration {
 
 // Main //
 window {
-    height:                      30em;
+    // 30em fitted the 7 rows exactly, leaving the dummies at zero height, so
+    // the input bar has to come out of a taller window rather than out of them.
+    height:                      34em;
     width:                       37em;
     transparency:                "real";
     fullscreen:                  false;
@@ -67,14 +70,36 @@ dummybox {
 
 // Inputs //
 inputbar {
-    enabled:                     false;
+    enabled:                     true;
+    spacing:                     0.6em;
+    padding:                     0.7em 1em 0.7em 1em;
+    border-radius:               0.8em;
+    children:                    [ "prompt" , "entry" ];
+    background-color:            @list-bg;
+    text-color:                  @main-fg;
+}
+prompt {
+    enabled:                     true;
+    background-color:            transparent;
+    text-color:                  @main-br;
+}
+entry {
+    enabled:                     true;
+    cursor:                      text;
+    placeholder:                 "Search applications...";
+    placeholder-color:           @button-fg;
+    background-color:            transparent;
+    text-color:                  @main-fg;
 }
 
 // Lists //
+// The dummies keep the list vertically centred against the mode rail, which is
+// what they did before the input bar went in; the bar rides above the list
+// inside the top one rather than pushing the whole column down.
 listbox {
     padding:                     0em;
-    spacing:                     0em;
-    children:                    [ "dummy" , "listview" , "dummy" ];
+    spacing:                     0.6em;
+    children:                    [ "dummy" , "inputbar" , "listview" , "dummy" ];
     background-color:            transparent;
 }
 listview {
