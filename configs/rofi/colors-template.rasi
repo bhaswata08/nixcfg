@@ -13,12 +13,19 @@
  * The processor scans comments too, so do not write an example placeholder in
  * this header; a malformed one fails the whole render and nothing is written.
  *
- * Alpha bytes: B3 = 70%, 99 = 60%.
+ * Alpha bytes: CC = 80%, D9 = 85%, E6 = 90%.
  *
  * These sit on a blurred wallpaper, since niri blurs behind rofi's layer
- * surface (configs/theming/niri.nix). A blurred backdrop stays readable at a
- * lower alpha than a sharp one, so the surfaces are more transparent than the
- * plain-wallpaper values they replaced.
+ * surface (configs/theming/niri.nix).
+ *
+ * The three surfaces climb the tonal ramp rather than sitting at the bottom of
+ * it, and each is a step more opaque than the one under it: window, then the
+ * list card on top of it, then the mode circles on top of that. Reading down
+ * the ramp instead (surface_container_lowest for the list, surface_variant for
+ * the circles) put the list at #0a1014 and left the circles a hair off the
+ * window behind them, so the list swallowed the blur and the rail all but
+ * vanished. Lightness is what separates these layers; alpha only decides how
+ * much wallpaper shows through.
  *
  * Selection and border take tertiary, not primary. noctalia paints its own
  * highlights (selected clipboard row, active workspace pill) with mTertiary,
@@ -27,12 +34,12 @@
  */
 
 * {
-    main-bg:     #{{colors.surface.default.hex_stripped}}B3;
+    main-bg:     #{{colors.surface.default.hex_stripped}}CC;
     main-fg:     {{colors.on_surface.default.hex}};
     main-br:     {{colors.tertiary.default.hex}};
-    list-bg:     #{{colors.surface_container_lowest.default.hex_stripped}}99;
+    list-bg:     #{{colors.surface_container_high.default.hex_stripped}}D9;
     select-bg:   {{colors.tertiary.default.hex}};
     select-fg:   {{colors.on_tertiary.default.hex}};
-    button-bg:   #{{colors.surface_variant.default.hex_stripped}}99;
-    button-fg:   {{colors.on_surface_variant.default.hex}};
+    button-bg:   #{{colors.surface_container_highest.default.hex_stripped}}E6;
+    button-fg:   {{colors.on_surface.default.hex}};
 }
