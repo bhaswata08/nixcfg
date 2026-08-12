@@ -238,7 +238,7 @@
     "tooltipsEnabled": true,
     "scrollbarAlwaysVisible": true,
     "boxBorderEnabled": false,
-    "panelBackgroundOpacity": 0.45,
+    "panelBackgroundOpacity": 0.25,
     "translucentWidgets": true,
     "panelsAttachedToBar": true,
     "settingsPanelMode": "attached",
@@ -613,7 +613,7 @@
     "schedulingMode": "off",
     "manualSunrise": "06:30",
     "manualSunset": "18:30",
-    "generationMethod": "content",
+    "generationMethod": "faithful",
     "monitorForColors": "",
     "syncGsettings": true
   },

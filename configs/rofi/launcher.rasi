@@ -115,9 +115,12 @@ button {
     background-color:            @button-bg;
     text-color:                  @button-fg;
 }
+// The accent, not @main-fg. HyDE's original paints the active mode a flat
+// white circle, which is the brightest thing on screen and pulls the eye away
+// from the selected row it is supposed to agree with.
 button selected {
-    background-color:            @main-fg;
-    text-color:                  @main-bg;
+    background-color:            @select-bg;
+    text-color:                  @select-fg;
 }
 
 // Elements //
