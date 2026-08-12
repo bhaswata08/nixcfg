@@ -1,41 +1,80 @@
-{ lib, ... }:
+{ config, lib, ... }:
+
+let
+  # Kept equal to the output_path values below. The @import lines in each
+  # profile have to name the same files, and the activation script writes them.
+  chromeCss = "${config.xdg.cacheHome}/noctalia/zen-browser/zen-userChrome.css";
+  contentCss = "${config.xdg.cacheHome}/noctalia/zen-browser/zen-userContent.css";
+in
 {
   # zen is installed from the flake input (modules/packages/external.nix) and
   # its profile is ordinary browser state, so nothing here manages the profile
-  # itself. This sets one prerequisite pref.
+  # itself. This wires up two things: the palette, and the prefs the palette
+  # needs in order to be read at all.
   #
-  # noctalia's zenBrowser template renders the palette into
-  # ~/.cache/noctalia/zen-browser/ and appends an @import for each file to the
-  # profile's userChrome.css and userContent.css. zen ships
-  # `toolkit.legacyUserProfileCustomizations.stylesheets` as false
-  # (greprefs.js), so without this the template writes files the browser reads
-  # nothing from. zen does flip the pref itself when it finds a user stylesheet,
-  # but only inside _migrateV1, a one-shot keyed on the profile's migration
-  # version, so a profile created before the template was enabled never sees it.
+  # The templates are ours rather than noctalia's built-in zenBrowser one, which
+  # stays off in configs/theming/noctalia-config.json. Its colour choices put
+  # the browser on a different rung of the tonal ramp and a different accent
+  # from the rest of the desktop, and it paints every surface opaque, which
+  # hides the compositor blur. configs/zen/*.css explain both changes. Taking it
+  # over wholesale rather than layering an override on top is deliberate: the
+  # built-in template's post-process step rewrites its own @import line to the
+  # end of userChrome.css on every render, so an override file could not stay
+  # after it in the cascade.
+  programs.noctalia-shell.user-templates.templates = {
+    zenUserChrome = {
+      input_path = "${./zen/userchrome-template.css}";
+      output_path = chromeCss;
+    };
+    zenUserContent = {
+      input_path = "${./zen/usercontent-template.css}";
+      output_path = contentCss;
+    };
+  };
+
+  # Two prefs, both off by default in zen's greprefs.js:
+  #
+  # toolkit.legacyUserProfileCustomizations.stylesheets gates userChrome.css and
+  # userContent.css entirely. Without it the templates above render into files
+  # the browser never opens. zen does flip it itself when it finds a user
+  # stylesheet, but only inside _migrateV1, a one-shot keyed on the profile's
+  # migration version, so a profile created before the templates were added
+  # never runs it.
+  #
+  # zen.widget.linux.transparency gives the window an ARGB visual. Without it
+  # the toplevel is opaque, and the alpha in the chrome CSS composites against
+  # zen's own backdrop rather than against the wallpaper, so niri's blur never
+  # shows through no matter what the stylesheet asks for.
   #
   # user.js rather than prefs.js: the browser rewrites prefs.js on exit and
-  # re-reads user.js on every start, so this survives a pref reset. The profile
-  # directory name is generated per machine, hence the glob.
+  # re-reads user.js on every start, so these survive a reset from inside the
+  # browser.
   #
-  # The glob matches on `chrome/` rather than on any directory under
+  # The glob matches on chrome/ rather than on any directory under
   # ~/.config/zen, which also holds firefox-mpris, native-messaging-hosts and
-  # Profile Groups. Beyond skipping those, it selects the same set noctalia's
-  # own hook writes into, since that hook only visits profiles whose chrome
-  # directory already exists: exactly the profiles the pref matters for.
-  home.activation.zenUserChrome = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+  # Profile Groups.
+  home.activation.zenTheming = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     for chrome in "$HOME"/.config/zen/*/chrome/; do
       [ -d "$chrome" ] || continue
-      userjs="$(dirname "$chrome")/user.js"
-      line='user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);'
-      if ! grep -Fqs "$line" "$userjs"; then
+      profile="$(dirname "$chrome")"
+
+      appendOnce() {
         # Appending needs a shell redirect, which `run` cannot wrap without the
         # redirect firing during a dry run too, so the dry run is handled here.
+        grep -Fqs "$2" "$1" && return 0
         if [[ -v DRY_RUN ]]; then
-          echo "would append the legacy stylesheet pref to $userjs"
+          echo "would append to $1: $2"
         else
-          printf '%s\n' "$line" >> "$userjs"
+          printf '%s\n' "$2" >> "$1"
         fi
-      fi
+      }
+
+      appendOnce "$profile/user.js" \
+        'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);'
+      appendOnce "$profile/user.js" \
+        'user_pref("zen.widget.linux.transparency", true);'
+      appendOnce "$chrome/userChrome.css" '@import "${chromeCss}";'
+      appendOnce "$chrome/userContent.css" '@import "${contentCss}";'
     done
   '';
 }
