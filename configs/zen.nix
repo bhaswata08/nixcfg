@@ -66,18 +66,17 @@ in
   # zen.widget.linux.transparency drops the opaque background off #main-window,
   # which is what lets any alpha in the theme reach the compositor at all.
   #
-  # widget.wayland.opaque-region.enabled has to be off beside it, and this is
-  # the one that was missing. Firefox tells the compositor which part of its
-  # surface is fully opaque, as a hint that lets the compositor skip blending
-  # and skip drawing what is behind. It claims the whole window. A compositor
-  # that believes it has no reason to look at the alpha channel, so every
-  # translucent pixel in the theme composites against nothing and reads solid.
-  # It is why the only see-through zen ever had came from niri's own opacity,
-  # applied on top of the surface rather than through it.
-  #
-  # browser.tabs.allow_transparent_browser lets the content area go
-  # transparent, which is what Nebula's backdrop-filter needs something to
-  # frost over.
+  # widget.wayland.opaque-region.enabled is off beside it. Firefox tells the
+  # compositor which part of its surface is fully opaque, as a hint that lets
+  # the compositor skip blending and skip drawing what is behind, and it claims
+  # the whole window. Turning that off is necessary but, measured on this build,
+  # not sufficient: with all four prefs set and zen on native Wayland, sampling
+  # a screenshot along the toolbar gives the same value at every x while the
+  # wallpaper directly above it swings from #86CBE1 to #4A495E. Not one pixel of
+  # bleed. Something below the chrome is still opaque and it is not this. The
+  # pref stays because it is a real precondition, not because it was the fix.
+  # The only see-through zen has ever had came from niri's own opacity, applied
+  # on top of the surface rather than through it.
   #
   # browser.tabs.allow_transparent_browser lets the content area go
   # transparent, which is what Nebula's backdrop-filter needs something to
