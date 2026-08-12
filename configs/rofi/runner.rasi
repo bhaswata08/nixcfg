@@ -30,6 +30,17 @@ configuration {
     display-websearch:           "web";
     display-run:                 "run";
     font:                        "IosevkaTerm Nerd Font 12";
+
+    // Left/Right walk the mode row, matching the way the row reads. rofi binds
+    // them to the text cursor by default and refuses to start if one key sits
+    // on two actions, so kb-move-char-* has to give them up first; Control+b
+    // and Control+f still move the cursor inside an expression. The original
+    // Shift+arrow and Control+Tab bindings are kept so nothing that already
+    // worked stops working.
+    kb-move-char-back:           "Control+b";
+    kb-move-char-forward:        "Control+f";
+    kb-mode-previous:            "Left,Shift+Left,Control+ISO_Left_Tab";
+    kb-mode-next:                "Right,Shift+Right,Control+Tab";
 }
 
 window {
