@@ -14,15 +14,20 @@
  * this header; a malformed one fails the whole render and nothing is written.
  *
  * Alpha bytes: CC = 80%, B3 = 70%.
+ *
+ * Selection and border take tertiary, not primary. noctalia paints its own
+ * highlights (selected clipboard row, active workspace pill) with mTertiary,
+ * so primary would leave the launcher accented differently from the bar it
+ * opens under.
  */
 
 * {
     main-bg:     #{{colors.surface.default.hex_stripped}}CC;
     main-fg:     {{colors.on_surface.default.hex}};
-    main-br:     {{colors.primary.default.hex}};
+    main-br:     {{colors.tertiary.default.hex}};
     list-bg:     #{{colors.surface_container_lowest.default.hex_stripped}}B3;
-    select-bg:   {{colors.primary.default.hex}};
-    select-fg:   {{colors.on_primary.default.hex}};
+    select-bg:   {{colors.tertiary.default.hex}};
+    select-fg:   {{colors.on_tertiary.default.hex}};
     button-bg:   #{{colors.surface_variant.default.hex_stripped}}B3;
     button-fg:   {{colors.on_surface_variant.default.hex}};
 }
