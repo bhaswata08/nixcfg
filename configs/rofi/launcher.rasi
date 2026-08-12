@@ -126,11 +126,15 @@ dummy {
 }
 
 // Modes //
+// The rail centres on the list card, not on the column. The input bar pushes
+// the card down by its own height and the dummies have no slack left to give
+// back, so the padding is 3.2em either side shifted 1.2em down to follow it;
+// centred on the column the rail sat 22px high of the card.
 mode-switcher {
     orientation:                 vertical;
     width:                       6.8em;
     enabled:                     true;
-    padding:                     3.2em 1em 3.2em 1em;
+    padding:                     4.4em 1em 2em 1em;
     spacing:                     1em;
     background-color:            transparent;
 }
