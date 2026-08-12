@@ -30,6 +30,25 @@
  */
 
 :root {
+  /* --- zen's own backdrop --- */
+  /* Everything below is invisible until these four are cleared.
+     .zen-browser-generic-background stretches two pseudo-elements across the
+     whole window (zen-styles/zen-browser-ui.css) and fills them from these,
+     defaulting to an opaque #1b1b1b. That sheet of paint sits behind the
+     entire chrome, so no amount of alpha or backdrop-filter above it reaches
+     the wallpaper.
+     Nebula means to clear it, but its rule is behind
+     :root[nebula-zen-gradient-contrast-zero], an attribute nothing in the
+     theme sets: its own script stopped setting it, so the rule is dead for
+     everyone, with or without Sine. Hence doing it here.
+     The -old pair is the other half of zen's cross-fade between two
+     backgrounds, drawn at calc(1 - --zen-background-opacity). Clearing only
+     the first pair leaves that half painting. */
+  --zen-main-browser-background: transparent !important;
+  --zen-main-browser-background-toolbar: transparent !important;
+  --zen-main-browser-background-old: transparent !important;
+  --zen-main-browser-background-toolbar-old: transparent !important;
+
   /* Glass & blur. Nebula's defaults, kept: this is the material itself, and it
      does not depend on the palette. */
   --var-nebula-glass-blur: 32px;
