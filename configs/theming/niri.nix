@@ -255,11 +255,11 @@
 
         Mod+Shift+Slash { show-hotkey-overlay; }
         Mod+T hotkey-overlay-title="Open a Terminal: wezterm" { spawn "wezterm"; }
-        Mod+A hotkey-overlay-title="Run an Application: rofi" { spawn-sh "noctalia-shell ipc call launcher toggle"; }
+        Mod+A hotkey-overlay-title="Run an Application: rofi" { spawn-sh "rofi -show drun -theme ~/.config/rofi/launcher.rasi"; }
         Super+Alt+L hotkey-overlay-title="Lock the Screen: hyprlock" { spawn "hyprlock"; }
         Super+B hotkey-overlay-title="Spawn Browser: zen" {spawn "zen"; }
         Super+E hotkey-overlay-title="Spawn Explorer: nautilus" {spawn "nautilus"; }
-        Super+Space hotkey-overlay-title="Spawn runner: Anyrun" { spawn-sh "anyrun --show-results-immediately true | wl-copy"; }
+        Super+Space hotkey-overlay-title="Quick runner: rofi calc/emoji/web/run" { spawn-sh "rofi -show calc -theme ~/.config/rofi/runner.rasi"; }
         Super+V { spawn-sh "noctalia-shell ipc call launcher clipboard"; }
         Ctrl+Alt+Delete { spawn-sh "noctalia-shell ipc call sessionMenu toggle"; }
 

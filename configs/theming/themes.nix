@@ -21,6 +21,10 @@
     flavor = "mocha";
     accent = "mauve";
     hyprlock.enable = false;
+    # autoEnable would set programs.rofi.theme, and the resulting `@theme` line
+    # in config.rasi fights the two themes in configs/rofi.nix. The rofi themes
+    # already use the mocha/mauve palette by hand.
+    rofi.enable = false;
   };
 
   # Qt theming: Kvantum style driven by catppuccin (mocha/mauve). Setting

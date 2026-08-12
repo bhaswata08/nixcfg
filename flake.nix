@@ -15,18 +15,11 @@
       url = "github:youwen5/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # Both of these default to their own pinned nixpkgs. kidex additionally
-    # pinned its own home-manager. Left alone they pulled a June 2025 nixpkgs
-    # and home-manager into the lock, so the system evaluated two nixpkgs trees
-    # and built kidex against a 14-month-old one.
+    # pfm defaults to its own pinned nixpkgs; left alone it pulled a second
+    # nixpkgs tree into the lock.
     pfm = {
       url = "github:bhaswata08/pfm";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-    kidex = {
-      url = "github:Kirottu/kidex";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.home-manager.follows = "home-manager";
     };
 
     qml-niri = {

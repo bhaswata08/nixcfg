@@ -85,7 +85,6 @@
     markdownlint-cli2 # markdown linter surfaced via none-ls diagnostics
 
     # System and Desktop
-    anyrun
     chromium
     cups
     libglvnd

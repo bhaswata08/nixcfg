@@ -1,0 +1,139 @@
+/*
+ * Quick-answer runner, bound to Super+Space. This is the slot anyrun used to
+ * fill, so it opens on the calculator and keeps the other one-shot modes a
+ * click away in the row under the search field:
+ *
+ *   calc       rofi-calc, libqalculate  ->  replaces anyrun's rink plugin
+ *   emoji      rofi-emoji               ->  replaces anyrun's symbols plugin
+ *   websearch  script mode              ->  replaces anyrun's websearch plugin
+ *   run        built in                 ->  the krunner-style binary runner
+ *
+ * Unlike launcher.rasi this one keeps its search field: typing a sum or a
+ * query with no visible input would be unusable.
+ */
+
+@import "~/.config/rofi/colors.rasi"
+
+configuration {
+    // A `modi` line in a theme replaces the mode list from config.rasi rather
+    // than filtering it, so the websearch script has to be named here too. It
+    // resolves from PATH; configs/rofi.nix puts it there.
+    modi:                        "calc,emoji,websearch:rofi-websearch,run";
+    show-icons:                  false;
+    display-calc:                "calc";
+    display-emoji:               "emoji";
+    display-websearch:           "web";
+    display-run:                 "run";
+    font:                        "IosevkaTerm Nerd Font 12";
+}
+
+window {
+    width:                       42em;
+    transparency:                "real";
+    enabled:                     true;
+    cursor:                      "default";
+    spacing:                     0em;
+    padding:                     0em;
+    border:                      2px;
+    border-radius:               1em;
+    border-color:                @main-br;
+    background-color:            @main-bg;
+}
+mainbox {
+    enabled:                     true;
+    spacing:                     0.6em;
+    padding:                     1em;
+    orientation:                 vertical;
+    children:                    [ "inputbar" , "mode-switcher" , "listview" ];
+    background-color:            transparent;
+}
+
+inputbar {
+    enabled:                     true;
+    spacing:                     0.6em;
+    padding:                     0.7em 1em 0.7em 1em;
+    border-radius:               0.8em;
+    children:                    [ "prompt" , "entry" ];
+    background-color:            @list-bg;
+    text-color:                  @main-fg;
+}
+prompt {
+    enabled:                     true;
+    background-color:            transparent;
+    text-color:                  @main-br;
+}
+entry {
+    enabled:                     true;
+    cursor:                      text;
+    placeholder:                 "Calculate, search, run...";
+    placeholder-color:           @button-fg;
+    background-color:            transparent;
+    text-color:                  @main-fg;
+}
+
+mode-switcher {
+    orientation:                 horizontal;
+    enabled:                     true;
+    spacing:                     0.6em;
+    background-color:            transparent;
+}
+button {
+    cursor:                      pointer;
+    padding:                     0.4em;
+    border-radius:               0.8em;
+    background-color:            @button-bg;
+    text-color:                  @button-fg;
+}
+button selected {
+    background-color:            @select-bg;
+    text-color:                  @select-fg;
+}
+
+listview {
+    padding:                     0em;
+    spacing:                     0.2em;
+    enabled:                     true;
+    columns:                     1;
+    lines:                       8;
+    cycle:                       true;
+    dynamic:                     true;
+    scrollbar:                   false;
+    layout:                      vertical;
+    fixed-height:                false;
+    cursor:                      "default";
+    background-color:            transparent;
+    text-color:                  @main-fg;
+}
+element {
+    enabled:                     true;
+    spacing:                     0.6em;
+    padding:                     0.5em 0.8em 0.5em 0.8em;
+    border-radius:               0.8em;
+    cursor:                      pointer;
+    background-color:            transparent;
+    text-color:                  @main-fg;
+}
+element selected.normal {
+    background-color:            @select-bg;
+    text-color:                  @select-fg;
+}
+element-text {
+    vertical-align:              0.5;
+    horizontal-align:            0.0;
+    cursor:                      inherit;
+    background-color:            transparent;
+    text-color:                  inherit;
+}
+
+error-message {
+    text-color:                  @main-fg;
+    background-color:            @main-bg;
+    text-transform:              capitalize;
+    children:                    [ "textbox" ];
+}
+textbox {
+    text-color:                  inherit;
+    background-color:            inherit;
+    vertical-align:              0.5;
+    horizontal-align:            0.5;
+}

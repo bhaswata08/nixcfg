@@ -1,5 +1,6 @@
 {
   pkgs,
+  inputs,
   ...
 }:
 
@@ -21,6 +22,13 @@
     # rebuilds the same thing `just switch` does.
     NH_FLAKE = "/home/bhaswata/dotfiles/nixcfg";
     EDITOR = "${pkgs.neovim}/bin/nvim";
+    # xdg-open falls back to its generic handler under niri, and that chain can
+    # land on chromium even though configs/xdg-defaults.nix names zen for
+    # x-scheme-handler/https. $BROWSER is checked before the fallback, so this
+    # is what actually decides where rofi's websearch mode opens.
+    BROWSER = "${
+      inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
+    }/bin/zen";
   };
 
 }

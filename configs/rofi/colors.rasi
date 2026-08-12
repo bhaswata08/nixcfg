@@ -1,0 +1,23 @@
+/*
+ * Shared palette for every rofi theme in this directory.
+ *
+ * Catppuccin Mocha with the mauve accent, the same palette the Qt/Kvantum side
+ * already uses (configs/theming/themes.nix). rofi cannot follow noctalia's
+ * wallpaper-derived colours: that would need noctalia's user-template feature
+ * writing a .rasi, and rofi hard-errors on a missing @import, so the generated
+ * file would have to be seeded before first launch.
+ *
+ * The two backgrounds carry an alpha byte so the launcher sits over the
+ * wallpaper the way the bar does.
+ */
+
+* {
+    main-bg:     #1e1e2eD9;
+    main-fg:     #cdd6f4;
+    main-br:     #cba6f7;
+    list-bg:     #181825CC;
+    select-bg:   #cba6f7;
+    select-fg:   #1e1e2e;
+    button-bg:   #313244B3;
+    button-fg:   #cdd6f4;
+}
