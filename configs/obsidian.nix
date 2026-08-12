@@ -68,10 +68,19 @@ let
   # file by file rather than as a whole directory; the directory itself stays
   # writable. .obsidian/community-plugins.json is left alone for the same
   # reason - Obsidian rewrites it whenever a plugin is toggled in the UI.
+  #
+  # force is needed because Obsidian downloads any plugin it finds listed in
+  # community-plugins.json but missing from disk. That races activation and
+  # leaves a plain file at the exact path home-manager wants to link, which
+  # aborts the whole generation. The pinned version here wins instead.
   pluginFiles =
     vault: id: files:
     lib.mapAttrs' (
-      file: drv: lib.nameValuePair "${vault}/.obsidian/plugins/${id}/${file}" { source = drv; }
+      file: drv:
+      lib.nameValuePair "${vault}/.obsidian/plugins/${id}/${file}" {
+        source = drv;
+        force = true;
+      }
     ) files;
 
   vaultFiles =
