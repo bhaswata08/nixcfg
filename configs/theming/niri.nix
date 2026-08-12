@@ -226,6 +226,19 @@
         }
     }
 
+    // zen draws its own translucency and opts out of the blanket opacity above.
+    // Since configs/zen.nix turned on zen.widget.linux.transparency, the window
+    // has a real alpha channel and Nebula decides per widget what is see
+    // through: glass on the chrome, solid behind a page. A compositor opacity
+    // on top of that is a second, blunter pass over the same window, and it
+    // dims the web content as much as the chrome, which is what the reference
+    // screenshots do not do. The blur stays, so the wallpaper behind the
+    // transparent parts is still blurred.
+    window-rule {
+        match app-id=r#"zen$"#
+        opacity 1.0
+    }
+
     window-rule {
         match app-id=r#"zen$"# title="^Picture-in-Picture$"
         open-floating true
