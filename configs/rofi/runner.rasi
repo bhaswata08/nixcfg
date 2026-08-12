@@ -6,6 +6,7 @@
  *   calc       rofi-calc, libqalculate  ->  replaces anyrun's rink plugin
  *   emoji      rofi-emoji               ->  replaces anyrun's symbols plugin
  *   websearch  script mode              ->  replaces anyrun's websearch plugin
+ *   glyph      script mode              ->  Nerd Font glyphs, ported from HyDE
  *   run        built in                 ->  the krunner-style binary runner
  *
  * Unlike launcher.rasi this one keeps its search field: typing a sum or a
@@ -23,11 +24,12 @@ configuration {
     // A `modi` line in a theme replaces the mode list from config.rasi rather
     // than filtering it, so the websearch script has to be named here too. It
     // resolves from PATH; configs/rofi.nix puts it there.
-    modi:                        "calc,emoji,websearch:rofi-websearch,run";
+    modi:                        "calc,emoji,websearch:rofi-websearch,glyph:rofi-glyph,run";
     show-icons:                  false;
     display-calc:                "calc";
     display-emoji:               "emoji";
     display-websearch:           "web";
+    display-glyph:               "glyph";
     display-run:                 "run";
     font:                        "IosevkaTerm Nerd Font 12";
 }
@@ -49,7 +51,7 @@ mainbox {
     spacing:                     0.6em;
     padding:                     1em;
     orientation:                 vertical;
-    children:                    [ "inputbar" , "mode-switcher" , "listview" ];
+    children:                    [ "inputbar" , "message" , "mode-switcher" , "listview" ];
     background-color:            transparent;
 }
 
@@ -74,6 +76,17 @@ entry {
     placeholder-color:           @button-fg;
     background-color:            transparent;
     text-color:                  @main-fg;
+}
+
+// The web and glyph modes print a hint here through the rofi-script `message`
+// property: which prefixes the search understands, what Enter does. rofi
+// disables this widget when the current mode sets no message (view.c calls
+// widget_disable on the empty message box), so calc, emoji and run keep the
+// layout they had before it went in.
+message {
+    padding:                     0.2em 0.4em 0.2em 0.4em;
+    background-color:            transparent;
+    text-color:                  @button-fg;
 }
 
 mode-switcher {
