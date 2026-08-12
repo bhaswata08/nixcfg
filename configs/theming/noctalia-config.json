@@ -618,7 +618,12 @@
     "syncGsettings": true
   },
   "templates": {
-    "activeTemplates": [],
+    "activeTemplates": [
+      {
+        "id": "zenBrowser",
+        "enabled": true
+      }
+    ],
     "enableUserTheming": true
   },
   "nightLight": {

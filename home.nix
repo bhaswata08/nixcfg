@@ -18,6 +18,7 @@
     ./configs/rofi.nix
     ./configs/starship.nix
     ./configs/xdg-defaults.nix
+    ./configs/zen.nix
   ];
   gtk.gtk4.theme = config.gtk.theme;
   home.username = "bhaswata";
