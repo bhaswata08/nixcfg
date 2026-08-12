@@ -86,21 +86,16 @@ in
   xdg.configFile = {
     "rofi/launcher.rasi".source = ./rofi/launcher.rasi;
     "rofi/runner.rasi".source = ./rofi/runner.rasi;
+  };
 
-    # noctalia's answer to HyDE's wallbash. Its template processor renders
-    # every entry here on each wallpaper and colour-scheme change, so rofi
-    # tracks the shell instead of holding a palette of its own.
-    # colorSchemes.useWallpaperColors and templates.enableUserTheming are both
-    # on in configs/theming/noctalia-config.json.
-    #
-    # noctalia writes this file itself when it is missing or empty, and skips
-    # it otherwise, so a home-manager symlink here wins and stays.
-    "noctalia/user-templates.toml".text = ''
-      # Managed by configs/rofi.nix. Rendered on every theme generation.
-      [templates.rofi]
-      input_path = "${./rofi/colors-template.rasi}"
-      output_path = "${config.xdg.configHome}/rofi/colors.rasi"
-    '';
+  # noctalia's answer to HyDE's wallbash: its template processor renders this
+  # on every wallpaper and colour-scheme change, so rofi tracks the shell
+  # instead of holding a palette of its own. colorSchemes.useWallpaperColors
+  # and templates.enableUserTheming are both on in
+  # configs/theming/noctalia-config.json.
+  programs.noctalia-shell.user-templates.templates.rofi = {
+    input_path = "${./rofi/colors-template.rasi}";
+    output_path = "${config.xdg.configHome}/rofi/colors.rasi";
   };
 
   # ~/.config/rofi/colors.rasi has to be a plain writable file, since noctalia
