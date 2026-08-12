@@ -63,9 +63,21 @@ in
   # stylesheet, but only inside _migrateV1, a one-shot keyed on the profile's
   # migration version, so a profile created before this existed never runs it.
   #
-  # zen.widget.linux.transparency gives the window an ARGB visual. Without it
-  # the toplevel is opaque and every alpha in the theme composites against
-  # zen's own backdrop instead of the wallpaper, so niri's blur never shows.
+  # zen.widget.linux.transparency drops the opaque background off #main-window,
+  # which is what lets any alpha in the theme reach the compositor at all.
+  #
+  # widget.wayland.opaque-region.enabled has to be off beside it, and this is
+  # the one that was missing. Firefox tells the compositor which part of its
+  # surface is fully opaque, as a hint that lets the compositor skip blending
+  # and skip drawing what is behind. It claims the whole window. A compositor
+  # that believes it has no reason to look at the alpha channel, so every
+  # translucent pixel in the theme composites against nothing and reads solid.
+  # It is why the only see-through zen ever had came from niri's own opacity,
+  # applied on top of the surface rather than through it.
+  #
+  # browser.tabs.allow_transparent_browser lets the content area go
+  # transparent, which is what Nebula's backdrop-filter needs something to
+  # frost over.
   #
   # browser.tabs.allow_transparent_browser lets the content area go
   # transparent, which is what Nebula's backdrop-filter needs something to
@@ -95,6 +107,7 @@ in
       for pref in \
         'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);' \
         'user_pref("zen.widget.linux.transparency", true);' \
+        'user_pref("widget.wayland.opaque-region.enabled", false);' \
         'user_pref("browser.tabs.allow_transparent_browser", true);'
       do
         grep -Fqs "$pref" "$profile/user.js" && continue

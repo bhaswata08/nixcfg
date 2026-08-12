@@ -20,7 +20,14 @@
  * text on a light pill. The accent is therefore left out of the tab ladder,
  * and the palette enters through the surfaces instead.
  *
- * Alpha bytes: 00 = 0%, 33 = 20%, 59 = 35%, 66 = 40%, 73 = 45%, 8C = 55%.
+ * Alpha bytes: 00 = 0%, 14 = 8%, 33 = 20%, 40 = 25%, 59 = 35%, 73 = 45%,
+ * 8C = 55%.
+ *
+ * The two sheets that cover the whole window, the glass and the UI tint, sit
+ * below Nebula's defaults of 40% and 20%: they stack on every other surface,
+ * so a little goes a long way and they are the first thing to thin out when
+ * the window is not see-through enough. The tab ladder keeps Nebula's alphas,
+ * since those separate one tab from the next rather than covering anything.
  *
  * Shadows stay pure black. A shadow is an absence of light, not a surface, and
  * tinting it with the wallpaper reads as a coloured halo.
@@ -53,8 +60,8 @@
      does not depend on the palette. */
   --var-nebula-glass-blur: 32px;
   --var-nebula-glass-saturation: 140%;
-  --var-nebula-color-glass-light: #{{colors.surface.light.hex_stripped}}66;
-  --var-nebula-color-glass-dark: #{{colors.surface.dark.hex_stripped}}66;
+  --var-nebula-color-glass-light: #{{colors.surface.light.hex_stripped}}40;
+  --var-nebula-color-glass-dark: #{{colors.surface.dark.hex_stripped}}40;
 
   /* Layout. */
   --var-nebula-border-radius: 13px;
@@ -64,8 +71,8 @@
   /* UI and website tint. The website tint stays fully transparent, which is
      Nebula's default: a page brings its own background and tinting it fights
      whatever the site chose. */
-  --var-nebula-ui-tint-light: #{{colors.surface.light.hex_stripped}}33;
-  --var-nebula-ui-tint-dark: #{{colors.surface.dark.hex_stripped}}33;
+  --var-nebula-ui-tint-light: #{{colors.surface.light.hex_stripped}}14;
+  --var-nebula-ui-tint-dark: #{{colors.surface.dark.hex_stripped}}14;
   --var-nebula-website-tint-light: #{{colors.surface.light.hex_stripped}}00;
   --var-nebula-website-tint-dark: #{{colors.surface.dark.hex_stripped}}00;
 
