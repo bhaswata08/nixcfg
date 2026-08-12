@@ -10,6 +10,11 @@
  *
  * Unlike launcher.rasi this one keeps its search field: typing a sum or a
  * query with no visible input would be unusable.
+ *
+ * niri blurs the wallpaper behind this window too; the layer-rule in
+ * configs/theming/niri.nix matches rofi's namespace, so it covers both themes.
+ * `border-radius` below has to stay equal to that rule's
+ * `geometry-corner-radius`, or the blur corners will not follow the window's.
  */
 
 @import "~/.config/rofi/colors.rasi"
@@ -35,7 +40,7 @@ window {
     spacing:                     0em;
     padding:                     0em;
     border:                      2px;
-    border-radius:               1em;
+    border-radius:               20px;
     border-color:                @main-br;
     background-color:            @main-bg;
 }

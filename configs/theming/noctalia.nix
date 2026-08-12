@@ -22,6 +22,8 @@
     # no setting exposes it, so the cards sit as solid blocks over the
     # wallpaper. Everything else about the menu (layout, gaps, keybind badges,
     # countdown) is already what it should be, so this rewrites the one line.
+    # 0.45 is `ui.panelBackgroundOpacity` from noctalia-config.json spelled out
+    # again, because the QML cannot reach the setting from here; change both.
     #
     # Bumping the noctalia input: `replace-fail` turns a moved or reworded line
     # into a build error rather than a silent no-op, so a failed build here

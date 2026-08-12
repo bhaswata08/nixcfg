@@ -238,7 +238,7 @@
     "tooltipsEnabled": true,
     "scrollbarAlwaysVisible": true,
     "boxBorderEnabled": false,
-    "panelBackgroundOpacity": 0.72,
+    "panelBackgroundOpacity": 0.45,
     "translucentWidgets": true,
     "panelsAttachedToBar": true,
     "settingsPanelMode": "attached",

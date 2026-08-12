@@ -244,6 +244,23 @@
         clip-to-geometry true
     }
 
+    // Blur the wallpaper behind rofi, which is what HyDE fakes by baking a
+    // blurred copy of the wallpaper into ~/.cache/hyde/wall.blur and drawing it
+    // as a background-image. niri does it for real through ext-background-
+    // effect, so nothing has to be regenerated on a wallpaper change.
+    //
+    // rofi sizes its layer surface to the window (launcher.rasi and runner.rasi
+    // both set fullscreen off and a fixed width), so the blur lands under the
+    // window and nowhere else. The radius has to be repeated here because niri
+    // cannot read the rasi: keep it equal to `border-radius` in both themes.
+    layer-rule {
+        match namespace="^rofi$"
+        geometry-corner-radius 20
+        background-effect {
+            blur true
+        }
+    }
+
     binds {
         // Keys consist of modifiers separated by + signs, followed by an XKB key name
         // in the end. To find an XKB name for a particular key, you may use a program

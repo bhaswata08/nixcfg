@@ -13,7 +13,12 @@
  * The processor scans comments too, so do not write an example placeholder in
  * this header; a malformed one fails the whole render and nothing is written.
  *
- * Alpha bytes: CC = 80%, B3 = 70%.
+ * Alpha bytes: B3 = 70%, 99 = 60%.
+ *
+ * These sit on a blurred wallpaper, since niri blurs behind rofi's layer
+ * surface (configs/theming/niri.nix). A blurred backdrop stays readable at a
+ * lower alpha than a sharp one, so the surfaces are more transparent than the
+ * plain-wallpaper values they replaced.
  *
  * Selection and border take tertiary, not primary. noctalia paints its own
  * highlights (selected clipboard row, active workspace pill) with mTertiary,
@@ -22,12 +27,12 @@
  */
 
 * {
-    main-bg:     #{{colors.surface.default.hex_stripped}}CC;
+    main-bg:     #{{colors.surface.default.hex_stripped}}B3;
     main-fg:     {{colors.on_surface.default.hex}};
     main-br:     {{colors.tertiary.default.hex}};
-    list-bg:     #{{colors.surface_container_lowest.default.hex_stripped}}B3;
+    list-bg:     #{{colors.surface_container_lowest.default.hex_stripped}}99;
     select-bg:   {{colors.tertiary.default.hex}};
     select-fg:   {{colors.on_tertiary.default.hex}};
-    button-bg:   #{{colors.surface_variant.default.hex_stripped}}B3;
+    button-bg:   #{{colors.surface_variant.default.hex_stripped}}99;
     button-fg:   {{colors.on_surface_variant.default.hex}};
 }

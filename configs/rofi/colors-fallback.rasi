@@ -9,16 +9,17 @@
  * place during activation if nothing is there yet.
  *
  * Catppuccin Mocha with the mauve accent, matching the Qt/Kvantum side
- * (configs/theming/themes.nix). Alpha bytes: CC = 80%, B3 = 70%.
+ * (configs/theming/themes.nix). Alpha bytes: B3 = 70%, 99 = 60%, matching
+ * colors-template.rasi, which explains why they are this low.
  */
 
 * {
-    main-bg:     #1e1e2eCC;
+    main-bg:     #1e1e2eB3;
     main-fg:     #cdd6f4;
     main-br:     #cba6f7;
-    list-bg:     #181825B3;
+    list-bg:     #18182599;
     select-bg:   #cba6f7;
     select-fg:   #1e1e2e;
-    button-bg:   #313244B3;
+    button-bg:   #31324499;
     button-fg:   #cdd6f4;
 }

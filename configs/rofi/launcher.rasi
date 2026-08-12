@@ -5,8 +5,12 @@
  * https://github.com/HyDE-Project/HyDE -> Configs/.local/share/hyde/rofi/themes
  *
  * Changed from the original: the two `background-image: url("~/.cache/hyde/
- * wall.blur")` layers are dropped, since nothing here populates that cache;
- * translucent backgrounds from colors.rasi stand in for them.
+ * wall.blur")` layers are dropped. niri blurs the wallpaper behind the rofi
+ * layer surface instead (see the layer-rule in configs/theming/niri.nix), so
+ * the translucent backgrounds from colors.rasi sit on a blurred wallpaper
+ * without anything having to regenerate a blurred copy on every wallpaper
+ * change. `border-radius` below has to stay equal to the rule's
+ * `geometry-corner-radius`, or the blur corners will not follow the window's.
  *
  * The sidebar holds one circle per mode, in `modi` order: drun, filebrowser,
  * window, run.
@@ -41,7 +45,7 @@ window {
     spacing:                     0em;
     padding:                     0em;
     border:                      2px;
-    border-radius:               1.5em;
+    border-radius:               20px;
     border-color:                @main-br;
     background-color:            @main-bg;
 }
