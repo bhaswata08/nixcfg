@@ -1,0 +1,68 @@
+/*
+ * Nebula's tuning variables, rendered by noctalia into
+ * ~/.cache/noctalia/zen-browser/nebula-vars.css on every wallpaper or
+ * colour-scheme change. Declared in configs/zen.nix; do not edit the rendered
+ * file.
+ *
+ * Nebula reads every colour and measurement from a --var-nebula-* property and
+ * ships defaults for them in preferences.json, which its settings UI writes to
+ * about:config. Nothing here uses that UI: the properties are plain custom
+ * properties, so defining them on :root is enough, and defining them from a
+ * template is what makes the glass follow the wallpaper. Its feature toggles
+ * are read straight from prefs with @media (-moz-pref(...)), so those live in
+ * user.js instead (configs/zen.nix).
+ *
+ * Nebula's own defaults are neutral: black at 20/35/45/55% for the tab ladder,
+ * black at 40% for the glass. Only the hue changes here. The alpha ladder is
+ * kept exactly as it is, because it is what separates a hovered tab from a
+ * selected one, and because Nebula never sets tab text colour: it inherits
+ * zen's light-on-dark, so a light accent behind a selected tab would put light
+ * text on a light pill. The accent is therefore left out of the tab ladder,
+ * and the palette enters through the surfaces instead.
+ *
+ * Alpha bytes: 00 = 0%, 33 = 20%, 59 = 35%, 66 = 40%, 73 = 45%, 8C = 55%.
+ *
+ * Shadows stay pure black. A shadow is an absence of light, not a surface, and
+ * tinting it with the wallpaper reads as a coloured halo.
+ *
+ * The processor scans comments too, so no example placeholder can appear in
+ * this header; a malformed one fails the whole render.
+ */
+
+:root {
+  /* Glass & blur. Nebula's defaults, kept: this is the material itself, and it
+     does not depend on the palette. */
+  --var-nebula-glass-blur: 32px;
+  --var-nebula-glass-saturation: 140%;
+  --var-nebula-color-glass-light: #{{colors.surface.light.hex_stripped}}66;
+  --var-nebula-color-glass-dark: #{{colors.surface.dark.hex_stripped}}66;
+
+  /* Layout. */
+  --var-nebula-border-radius: 13px;
+  --var-nebula-essentials-width: 60px;
+  --var-nebula-workspace-grayscale: 100%;
+
+  /* UI and website tint. The website tint stays fully transparent, which is
+     Nebula's default: a page brings its own background and tinting it fights
+     whatever the site chose. */
+  --var-nebula-ui-tint-light: #{{colors.surface.light.hex_stripped}}33;
+  --var-nebula-ui-tint-dark: #{{colors.surface.dark.hex_stripped}}33;
+  --var-nebula-website-tint-light: #{{colors.surface.light.hex_stripped}}00;
+  --var-nebula-website-tint-dark: #{{colors.surface.dark.hex_stripped}}00;
+
+  /* The tab ladder: resting, default, hover, selected. Each rung is both a
+     step up the tonal ramp and a step up in alpha, the same way the rofi
+     surfaces climb in configs/rofi/colors-template.rasi. */
+  --var-nebula-tabs-minimum-light: #{{colors.surface_container_high.light.hex_stripped}}33;
+  --var-nebula-tabs-minimum-dark: #{{colors.surface_container_high.dark.hex_stripped}}33;
+  --var-nebula-tabs-default-light: #{{colors.surface_container_high.light.hex_stripped}}59;
+  --var-nebula-tabs-default-dark: #{{colors.surface_container_high.dark.hex_stripped}}59;
+  --var-nebula-tabs-hover-light: #{{colors.surface_container_highest.light.hex_stripped}}73;
+  --var-nebula-tabs-hover-dark: #{{colors.surface_container_highest.dark.hex_stripped}}73;
+  --var-nebula-tabs-selected-light: #{{colors.surface_container_highest.light.hex_stripped}}8C;
+  --var-nebula-tabs-selected-dark: #{{colors.surface_container_highest.dark.hex_stripped}}8C;
+
+  /* Shadows. */
+  --var-nebula-color-shadow-light: rgb(0 0 0 / 5.5%);
+  --var-nebula-color-shadow-dark: rgb(0 0 0 / 55%);
+}

@@ -15,6 +15,19 @@
       url = "github:youwen5/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Nebula, the glass theme zen's chrome is skinned with (configs/zen.nix).
+    # Plain CSS, not a flake.
+    #
+    # Pinned to a commit, not to a tag. The tags lag the tree they are named
+    # for: v3.3 holds a theme.json saying 3.2, under a differently cased
+    # directory layout. This rev is 3.3.3. An upgrade wants checking against
+    # whatever zen the zen-browser input is on at the time, since Nebula tracks
+    # zen's own versions.
+    zen-nebula = {
+      url = "github:JustAdumbPrsn/Zen-Nebula/31ba4a3bde77391e173a6a3460d9fb0ab9bca8a0";
+      flake = false;
+    };
     # pfm defaults to its own pinned nixpkgs; left alone it pulled a second
     # nixpkgs tree into the lock.
     pfm = {

@@ -245,7 +245,8 @@
         "noctalia": "noctalia",
         "pfm": "pfm",
         "qml-niri": "qml-niri",
-        "zen-browser": "zen-browser"
+        "zen-browser": "zen-browser",
+        "zen-nebula": "zen-nebula"
       }
     },
     "rust-overlay": {
@@ -341,6 +342,23 @@
       "original": {
         "owner": "youwen5",
         "repo": "zen-browser-flake",
+        "type": "github"
+      }
+    },
+    "zen-nebula": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1778163259,
+        "narHash": "sha256-1jZ+7ndp31qTGreStonmSz97zulA48fTR+0g/Zqw0UI=",
+        "owner": "JustAdumbPrsn",
+        "repo": "Zen-Nebula",
+        "rev": "31ba4a3bde77391e173a6a3460d9fb0ab9bca8a0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "JustAdumbPrsn",
+        "repo": "Zen-Nebula",
+        "rev": "31ba4a3bde77391e173a6a3460d9fb0ab9bca8a0",
         "type": "github"
       }
     }
