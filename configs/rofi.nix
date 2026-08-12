@@ -1,4 +1,6 @@
 {
+  config,
+  lib,
   pkgs,
   ...
 }:
@@ -22,10 +24,10 @@ let
     fi
     query=$(printf '%s' "$1" | ${pkgs.jq}/bin/jq -sRr @uri)
     url="https://duckduckgo.com/?q=$query"
-    # $BROWSER first, xdg-open only as a fallback. Under niri, xdg-open takes
-    # its generic path and can land on chromium even though
-    # configs/xdg-defaults.nix names zen for x-scheme-handler/https.
-    # modules/environment.nix sets $BROWSER to zen.
+    # $BROWSER first, xdg-open only as a fallback. Under niri, xdg-open runs
+    # its generic handler, and if the desktop-file lookup for zen ever misses
+    # it walks a hardcoded list that reaches chromium before giving up.
+    # modules/environment.nix sets $BROWSER to zen, which is checked first.
     if [ -n "''${BROWSER:-}" ]; then
       exec "$BROWSER" "$url"
     fi
@@ -82,8 +84,34 @@ in
   home.packages = [ websearch ];
 
   xdg.configFile = {
-    "rofi/colors.rasi".source = ./rofi/colors.rasi;
     "rofi/launcher.rasi".source = ./rofi/launcher.rasi;
     "rofi/runner.rasi".source = ./rofi/runner.rasi;
+
+    # noctalia's answer to HyDE's wallbash. Its template processor renders
+    # every entry here on each wallpaper and colour-scheme change, so rofi
+    # tracks the shell instead of holding a palette of its own.
+    # colorSchemes.useWallpaperColors and templates.enableUserTheming are both
+    # on in configs/theming/noctalia-config.json.
+    #
+    # noctalia writes this file itself when it is missing or empty, and skips
+    # it otherwise, so a home-manager symlink here wins and stays.
+    "noctalia/user-templates.toml".text = ''
+      # Managed by configs/rofi.nix. Rendered on every theme generation.
+      [templates.rofi]
+      input_path = "${./rofi/colors-template.rasi}"
+      output_path = "${config.xdg.configHome}/rofi/colors.rasi"
+    '';
   };
+
+  # ~/.config/rofi/colors.rasi has to be a plain writable file, since noctalia
+  # rewrites it; home-manager cannot own it. But rofi treats a missing @import
+  # as a fatal error, so the file must already exist the first time the
+  # launcher opens, before any wallpaper change has happened.
+  home.activation.seedRofiColors = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    if [ ! -e "${config.xdg.configHome}/rofi/colors.rasi" ]; then
+      run mkdir -p "${config.xdg.configHome}/rofi"
+      run cp ${./rofi/colors-fallback.rasi} "${config.xdg.configHome}/rofi/colors.rasi"
+      run chmod u+w "${config.xdg.configHome}/rofi/colors.rasi"
+    fi
+  '';
 }

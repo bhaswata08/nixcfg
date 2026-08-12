@@ -1,0 +1,28 @@
+/*
+ * Template for rofi's palette, rendered by noctalia into
+ * ~/.config/rofi/colors.rasi every time the wallpaper or colour scheme
+ * changes. Declared in configs/rofi.nix; do not edit the rendered file.
+ *
+ * This mirrors how HyDE does it. HyDE's wallbash reads
+ * .local/share/wallbash/always/rasi.dcol, a rasi body whose colours are
+ * `<wallbash_pry1>` placeholders with a literal hex alpha byte appended, and
+ * writes the result to a cache path that the rofi themes import. noctalia's
+ * template processor is the same idea with double-brace placeholders, so the
+ * alpha bytes below are appended the same way.
+ *
+ * The processor scans comments too, so do not write an example placeholder in
+ * this header; a malformed one fails the whole render and nothing is written.
+ *
+ * Alpha bytes: D9 = 85%, CC = 80%, B3 = 70%.
+ */
+
+* {
+    main-bg:     #{{colors.surface.default.hex_stripped}}D9;
+    main-fg:     {{colors.on_surface.default.hex}};
+    main-br:     {{colors.primary.default.hex}};
+    list-bg:     #{{colors.surface_container_lowest.default.hex_stripped}}CC;
+    select-bg:   {{colors.primary.default.hex}};
+    select-fg:   {{colors.on_primary.default.hex}};
+    button-bg:   #{{colors.surface_variant.default.hex_stripped}}B3;
+    button-fg:   {{colors.on_surface_variant.default.hex}};
+}
