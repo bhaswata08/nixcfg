@@ -2,13 +2,18 @@ onboarding = false
 [keys]
 prefix = "ctrl+s"
 
+# Fallback pane movement. The bare ctrl+h/j/k/l below are the everyday keys; these
+# always move Herdr panes even when the focused pane is running Neovim.
 focus_pane_left = "prefix+h"
 focus_pane_down = "prefix+j"
 focus_pane_up = "prefix+k"
 focus_pane_right = "prefix+l"
 
-split_vertical = "prefix+|"
-split_horizontal = "prefix+-"
+# Splits are handled by herdr-navigator (see [[keys.command]] below) so a new pane
+# enters the helper's layout cache immediately, instead of after Herdr's debounced
+# session.json write. Herdr's own split bindings are cleared to free the keys.
+split_vertical = ""
+split_horizontal = ""
 new_tab = "prefix+n"
 
 # close the entire workspace (all its tabs and panes)
@@ -21,3 +26,81 @@ previous_tab = "alt+p"
 next_tab = "alt+n"
 previous_workspace = "alt+comma"
 next_workspace = "alt+period"
+
+# herdr-navigator: the Rust helper from herdr.nvim, built in
+# modules/packages/external.nix. Herdr has no process-aware key forwarding, so the
+# helper decides per keypress: if the focused pane registered itself as Neovim (a
+# marker file under ~/.cache/herdr.nvim/panes/), forward the key into Neovim, which
+# moves a window and calls back out to `focus` only at its edge; otherwise move the
+# Herdr pane directly.
+[[keys.command]]
+key = "ctrl+h"
+type = "shell"
+command = "herdr-navigator dispatch left"
+
+[[keys.command]]
+key = "ctrl+j"
+type = "shell"
+command = "herdr-navigator dispatch down"
+
+[[keys.command]]
+key = "ctrl+k"
+type = "shell"
+command = "herdr-navigator dispatch up"
+
+[[keys.command]]
+key = "ctrl+l"
+type = "shell"
+command = "herdr-navigator dispatch right"
+
+[[keys.command]]
+key = "prefix+|"
+type = "shell"
+command = "herdr-navigator split right"
+
+[[keys.command]]
+key = "prefix+minus"
+type = "shell"
+command = "herdr-navigator split down"
+
+# ---------------------------------------------------------------------------
+# Plugin actions. Installed imperatively (`herdr plugin install`) into
+# ~/.config/herdr/plugins, which is outside Nix; `herdr plugin list` is the
+# source of truth. thanhdat77/herdr-navigator builds with cargo, and rustup here
+# has no default toolchain, so reinstalls and upgrades need a toolchain on PATH:
+#   nix shell nixpkgs#cargo nixpkgs#rustc --command \
+#     herdr plugin install thanhdat77/herdr-navigator --ref vX.Y.Z --yes
+#
+# NAME CLASH: the plugin's id is *also* `herdr-navigator`, unrelated to the
+# herdr.nvim helper binary of the same name used by the shell bindings above.
+# These bindings are type = "plugin_action" and resolve through the plugin
+# registry, not PATH, so the two never collide -- but don't conflate them.
+# ---------------------------------------------------------------------------
+
+# Fuzzy picker over workspaces, agents, projects, sessions and directories.
+[[keys.command]]
+key = "prefix+t"
+type = "plugin_action"
+command = "herdr-navigator.open"
+description = "jump to anything"
+
+[[keys.command]]
+key = "prefix+shift+t"
+type = "plugin_action"
+command = "herdr-navigator.jump-back"
+description = "jump back to previous location"
+
+# herdr-pluck: tmux-fingers-style hint copy/open over the focused pane's visible
+# text. Copy needs wl-copy (wl-clipboard, present via the Wayland/niri setup)
+# and open-url shells out to xdg-open.
+[[keys.command]]
+key = "prefix+f"
+type = "plugin_action"
+command = "rmarganti.herdr-pluck.pluck"
+description = "copy a visible token"
+
+[[keys.command]]
+key = "prefix+u"
+type = "plugin_action"
+command = "rmarganti.herdr-pluck.open-url"
+description = "open a visible URL"

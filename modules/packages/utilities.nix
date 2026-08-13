@@ -7,7 +7,6 @@
     wget
     tmux
     eza
-    swaynotificationcenter
     man
     yt-dlp
     tlrc
@@ -43,10 +42,8 @@
     ventoy
     iptables
     nftables
-    cron
     ngrok
-    apktool
-    javaPackages.compiler.openjdk17
+    file
   ];
 
   programs.appimage.enable = true;

@@ -7,7 +7,6 @@
       url = "github:catppuccin/nix";
       inputs.nixpkgs.follows = "nixpkgs"; 
     };
-    uwu-colors.url = "github:q60/uwu_colors";
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -16,8 +15,12 @@
       url = "github:youwen5/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    pfm.url = "github:bhaswata08/pfm";
-    kidex.url = "github:Kirottu/kidex";
+    # pfm defaults to its own pinned nixpkgs; left alone it pulled a second
+    # nixpkgs tree into the lock.
+    pfm = {
+      url = "github:bhaswata08/pfm";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     qml-niri = {
       url = "github:imiric/qml-niri/main";
@@ -29,22 +32,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    stylix = {
-      url = "github:nix-community/stylix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     herdr = {
       url = "github:ogulcancelik/herdr";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = 
+  outputs =
     inputs:
-    let
-      pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
-    in
     {
       nixosConfigurations.frosties = inputs.nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
@@ -60,8 +55,9 @@
               "flakes"
             ];
           }
-          inputs.stylix.nixosModules.stylix
-          inputs.catppuccin.nixosModules.catppuccin
+          # Only the home-manager catppuccin module is used (configs/theming/
+          # themes.nix). The NixOS one stayed at catppuccin.enable = false, so
+          # it themed nothing and only emitted a deprecation warning.
           inputs.home-manager.nixosModules.home-manager
           ./configuration.nix
           {
@@ -83,16 +79,8 @@
         ];
       };
 
-      homeConfigurations."bhaswata" = inputs.home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
-        specialArgs = {
-          inherit inputs;
-        };
-        modules = [
-          inputs.noctalia.homeModules.default
-          inputs.catppuccin.homeModules.catppuccin
-          ./home.nix
-        ];
-      };
+      # No standalone homeConfigurations output. home.nix is already applied
+      # through the home-manager NixOS module above, which is what `just switch`
+      # runs; a second entry point nothing exercised would only rot.
     };
 }

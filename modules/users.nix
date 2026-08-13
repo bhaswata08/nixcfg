@@ -20,11 +20,4 @@
     shell = pkgs.nushell;
     packages = with pkgs; [ ];
   };
-  users.users.newuser = {
-    isNormalUser = true;
-    description = "test";
-    extraGroups = [ "networkmanager" "video" "audio" "input"];
-    shell = pkgs.nushell;
-    packages = with pkgs; [ ];
-  };
 }

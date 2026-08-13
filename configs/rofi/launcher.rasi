@@ -1,0 +1,195 @@
+/*
+ * Application launcher, bound to Mod+A.
+ *
+ * Ported from HyDE's style_3.rasi ("ModeSidebar"):
+ * https://github.com/HyDE-Project/HyDE -> Configs/.local/share/hyde/rofi/themes
+ *
+ * Changed from the original: the two `background-image: url("~/.cache/hyde/
+ * wall.blur")` layers are dropped. niri blurs the wallpaper behind the rofi
+ * layer surface instead (see the layer-rule in configs/theming/niri.nix), so
+ * the translucent backgrounds from colors.rasi sit on a blurred wallpaper
+ * without anything having to regenerate a blurred copy on every wallpaper
+ * change. `border-radius` below has to stay equal to the rule's
+ * `geometry-corner-radius`, or the blur corners will not follow the window's.
+ *
+ * The sidebar holds one circle per mode, in `modi` order: drun, filebrowser,
+ * window, run.
+ *
+ * The other change: HyDE disables `inputbar`, so typing filters the list with
+ * nothing on screen showing what was typed. The field is enabled here and sits
+ * above the list, styled like the one in runner.rasi so both launchers read
+ * the same way.
+ */
+
+@import "~/.config/rofi/colors.rasi"
+
+configuration {
+    modi:                        "drun,filebrowser,window,run";
+    show-icons:                  true;
+    display-drun:                " ";
+    display-run:                 " ";
+    display-filebrowser:         " ";
+    display-window:              " ";
+    drun-display-format:         "{name}";
+    window-format:               "{w}{t}";
+    font:                        "IosevkaTerm Nerd Font 11";
+}
+
+// Main //
+window {
+    // 30em fitted the 7 rows exactly, leaving the dummies at zero height, so
+    // the input bar has to come out of a taller window rather than out of them.
+    height:                      34em;
+    width:                       37em;
+    transparency:                "real";
+    fullscreen:                  false;
+    enabled:                     true;
+    cursor:                      "default";
+    spacing:                     0em;
+    padding:                     0em;
+    border:                      2px;
+    border-radius:               20px;
+    border-color:                @main-br;
+    background-color:            @main-bg;
+}
+mainbox {
+    enabled:                     true;
+    spacing:                     0em;
+    padding:                     0em;
+    orientation:                 vertical;
+    children:                    [ "dummybox" ];
+    background-color:            transparent;
+}
+dummybox {
+    padding:                     0.5em;
+    spacing:                     0em;
+    orientation:                 horizontal;
+    children:                    [ "mode-switcher" , "listbox" ];
+    background-color:            transparent;
+}
+
+// Inputs //
+inputbar {
+    enabled:                     true;
+    spacing:                     0.6em;
+    padding:                     0.7em 1em 0.7em 1em;
+    border-radius:               0.8em;
+    children:                    [ "prompt" , "entry" ];
+    background-color:            @list-bg;
+    text-color:                  @main-fg;
+}
+prompt {
+    enabled:                     true;
+    background-color:            transparent;
+    text-color:                  @main-br;
+}
+entry {
+    enabled:                     true;
+    cursor:                      text;
+    placeholder:                 "Search applications...";
+    placeholder-color:           @button-fg;
+    background-color:            transparent;
+    text-color:                  @main-fg;
+}
+
+// Lists //
+// The dummies keep the list vertically centred against the mode rail, which is
+// what they did before the input bar went in; the bar rides above the list
+// inside the top one rather than pushing the whole column down.
+listbox {
+    padding:                     0em;
+    spacing:                     0.6em;
+    children:                    [ "dummy" , "inputbar" , "listview" , "dummy" ];
+    background-color:            transparent;
+}
+listview {
+    padding:                     1em;
+    spacing:                     0em;
+    enabled:                     true;
+    columns:                     1;
+    lines:                       7;
+    cycle:                       true;
+    dynamic:                     true;
+    scrollbar:                   false;
+    layout:                      vertical;
+    reverse:                     false;
+    expand:                      false;
+    fixed-height:                true;
+    fixed-columns:               true;
+    cursor:                      "default";
+    background-color:            @list-bg;
+    text-color:                  @main-fg;
+    border-radius:               1.5em;
+}
+dummy {
+    background-color:            transparent;
+}
+
+// Modes //
+// The rail centres on the list card, not on the column. The input bar pushes
+// the card down by its own height and the dummies have no slack left to give
+// back, so the padding is 3.2em either side shifted 1.2em down to follow it;
+// centred on the column the rail sat 22px high of the card.
+mode-switcher {
+    orientation:                 vertical;
+    width:                       6.8em;
+    enabled:                     true;
+    padding:                     4.4em 1em 2em 1em;
+    spacing:                     1em;
+    background-color:            transparent;
+}
+button {
+    cursor:                      pointer;
+    border-radius:               3em;
+    background-color:            @button-bg;
+    text-color:                  @button-fg;
+}
+// The accent, not @main-fg. HyDE's original paints the active mode a flat
+// white circle, which is the brightest thing on screen and pulls the eye away
+// from the selected row it is supposed to agree with.
+button selected {
+    background-color:            @select-bg;
+    text-color:                  @select-fg;
+}
+
+// Elements //
+element {
+    enabled:                     true;
+    spacing:                     1em;
+    padding:                     0.4em;
+    border-radius:               1em;
+    cursor:                      pointer;
+    background-color:            transparent;
+    text-color:                  @main-fg;
+}
+element selected.normal {
+    background-color:            @select-bg;
+    text-color:                  @select-fg;
+}
+element-icon {
+    size:                        3em;
+    cursor:                      inherit;
+    background-color:            transparent;
+    text-color:                  inherit;
+}
+element-text {
+    vertical-align:              0.5;
+    horizontal-align:            0.0;
+    cursor:                      inherit;
+    background-color:            transparent;
+    text-color:                  inherit;
+}
+
+// Error message //
+error-message {
+    text-color:                  @main-fg;
+    background-color:            @main-bg;
+    text-transform:              capitalize;
+    children:                    [ "textbox" ];
+}
+textbox {
+    text-color:                  inherit;
+    background-color:            inherit;
+    vertical-align:              0.5;
+    horizontal-align:            0.5;
+}

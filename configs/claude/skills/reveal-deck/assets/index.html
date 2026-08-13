@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DECK TITLE</title>
+
+  <!-- Fonts are vendored, so the deck looks the same on any machine and needs
+       no network in the room. Do not swap these for a CDN link. -->
+  <link rel="stylesheet" href="lib/node_modules/@fontsource/inter/400.css">
+  <link rel="stylesheet" href="lib/node_modules/@fontsource/inter/500.css">
+  <link rel="stylesheet" href="lib/node_modules/@fontsource/inter/600.css">
+  <link rel="stylesheet" href="lib/node_modules/@fontsource/jetbrains-mono/400.css">
+  <link rel="stylesheet" href="lib/node_modules/@fontsource/jetbrains-mono/500.css">
+
+  <link rel="stylesheet" href="lib/node_modules/reveal.js/dist/reset.css">
+  <link rel="stylesheet" href="lib/node_modules/reveal.js/dist/reveal.css">
+  <link rel="stylesheet" href="css/custom.css">
+</head>
+<body>
+
+<div class="reveal">
+  <div class="slides">
+    <!-- Sections are injected here by the loader below. -->
+  </div>
+</div>
+
+<script type="module">
+  import Reveal from './lib/node_modules/reveal.js/dist/reveal.mjs';
+
+  // The running order. Add acts here as they get built. Commented lines are
+  // planned but not written yet, so the plan stays visible.
+  // This list is duplicated in build.mjs. Adding an act means adding it to both.
+  const SECTIONS = [
+    '00-open.html',
+    // '01-....html',
+  ];
+
+  const container = document.querySelector('.reveal .slides');
+
+  for (const file of SECTIONS) {
+    const res = await fetch(`sections/${file}`);
+    if (!res.ok) {
+      console.error(`Could not load sections/${file}: ${res.status}`);
+      continue;
+    }
+    const holder = document.createElement('div');
+    holder.innerHTML = await res.text();
+    // Each file contributes its top level <section> elements.
+    for (const node of [...holder.children]) container.appendChild(node);
+  }
+
+  Reveal.initialize({
+    width: 1280,
+    height: 720,
+    // We own vertical placement ourselves: every section is a full height flex
+    // column. Reveal's own centring fights that and leaves a dead band.
+    center: false,
+    margin: 0.06,
+    minScale: 0.2,
+    maxScale: 1.6,
+    hash: true,
+    slideNumber: 'c/t',
+    transition: 'fade',
+    transitionSpeed: 'fast',
+  });
+</script>
+
+</body>
+</html>

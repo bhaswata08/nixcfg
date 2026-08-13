@@ -20,11 +20,11 @@
       # "application/epub+zip" = [ "org.pwmt.zathura.desktop" ];
 
       # Text / code
-      "text/plain" = [ "neovim.desktop" ];
-      "text/markdown" = [ "neovim.desktop" ];
-      "application/json" = [ "neovim.desktop" ];
-      "application/xml" = [ "neovim.desktop" ];
-      "text/x-shellscript" = [ "neovim.desktop" ];
+      "text/plain" = [ "nvim.desktop" ];
+      "text/markdown" = [ "nvim.desktop" ];
+      "application/json" = [ "nvim.desktop" ];
+      "application/xml" = [ "nvim.desktop" ];
+      "text/x-shellscript" = [ "nvim.desktop" ];
 
       # Images
       "image/png" = [ "org.gnome.Loupe.desktop" ];
@@ -37,16 +37,16 @@
       "image/svg+xml" = [ "org.gnome.Loupe.desktop" ];
 
       # Audio
-      "audio/mpeg" = [ "mpv" ];
-      "audio/flac" = [ "mpv" ];
-      "audio/ogg" = [ "mpv" ];
-      "audio/wav" = [ "mpv" ];
+      "audio/mpeg" = [ "mpv.desktop" ];
+      "audio/flac" = [ "mpv.desktop" ];
+      "audio/ogg" = [ "mpv.desktop" ];
+      "audio/wav" = [ "mpv.desktop" ];
 
       # Video
-      "video/mp4" = [ "mpv" ];
-      "video/x-matroska" = [ "mpv" ];
-      "video/webm" = [ "mpv" ];
-      "video/x-msvideo" = [ "mpv" ];
+      "video/mp4" = [ "mpv.desktop" ];
+      "video/x-matroska" = [ "mpv.desktop" ];
+      "video/webm" = [ "mpv.desktop" ];
+      "video/x-msvideo" = [ "mpv.desktop" ];
 
       # Archives
       # "application/zip" = [ "org.gnome.FileRoller.desktop" ];
@@ -66,7 +66,7 @@
       # "application/x-bittorrent" = [ "transmission-gtk.desktop" ];
 
       # Terminal apps
-      "application/x-terminal-emulator" = [ "com.mitchellh.ghostty.desktop" ];
+      "application/x-terminal-emulator" = [ "org.wezfurlong.wezterm.desktop" ];
     };
   };
 

@@ -1,0 +1,26 @@
+/*
+ * Seed palette for ~/.config/rofi/colors.rasi, the file launcher.rasi and
+ * runner.rasi import.
+ *
+ * noctalia rewrites that file from colors-template.rasi on every wallpaper
+ * change, so this is only what sits there until the first change happens.
+ * rofi errors out on a missing @import rather than skipping it, which is why
+ * the file has to exist from the start; configs/rofi.nix copies this into
+ * place during activation if nothing is there yet.
+ *
+ * Catppuccin Mocha with the mauve accent, matching the Qt/Kvantum side
+ * (configs/theming/themes.nix). Mocha's base/surface0/surface1 climb the same
+ * way surface/container_high/container_highest do in the template, with the
+ * matching alpha bytes: CC = 80%, D9 = 85%, E6 = 90%.
+ */
+
+* {
+    main-bg:     #1e1e2eCC;
+    main-fg:     #cdd6f4;
+    main-br:     #cba6f7;
+    list-bg:     #313244D9;
+    select-bg:   #cba6f7;
+    select-fg:   #1e1e2e;
+    button-bg:   #45475aE6;
+    button-fg:   #cdd6f4;
+}

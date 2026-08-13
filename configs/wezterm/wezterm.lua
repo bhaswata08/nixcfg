@@ -2,6 +2,12 @@ local wezterm = require("wezterm")
 local config = wezterm.config_builder()
 
 -- General
+-- Report keys with the kitty keyboard protocol (CSI u) instead of legacy control
+-- bytes, for apps that ask for it. Without this, Ctrl+/ arrives as the bare byte
+-- 0x1f, which is also Ctrl+_; Herdr decodes that to the unshifted base key and
+-- forwards Ctrl+- to Neovim, so Comment.nvim's Ctrl+/ mapping never fires. CSI u
+-- carries the real key, so Neovim sees <C-/>.
+config.enable_kitty_keyboard = true
 -- config.font_size = 19
 config.line_height = 1.2
 config.enable_tab_bar = false

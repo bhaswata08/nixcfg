@@ -63,11 +63,11 @@
         position x=0 y=0
     }
 
+    // QT_QPA_PLATFORMTHEME, QT_STYLE_OVERRIDE, XCURSOR_THEME and XCURSOR_SIZE
+    // are set once in modules/environment.nix, which reaches ly and the TTY too.
+    // Repeating them here only created a second copy that would win silently if
+    // the two ever drifted.
     environment {
-        QT_QPA_PLATFORMTHEME "qt6ct";
-        QT_STYLE_OVERRIDE "kvantum";
-        XCURSOR_THEME "catppuccin-mocha-dark-cursors";
-        XCURSOR_SIZE "24";
         GTK_CURSOR_THEME "catppuccin-mocha-dark-cursors"
     }
 
@@ -164,16 +164,20 @@
     }
 
     spawn-at-startup "awww-daemon"
-    spawn-at-startup "wallust" "run" "-n" "./wallpapers/bg-12.png"
-    spawn-at-startup "noctalia-shell"
+    // No "wallust run" here on purpose: its template target is
+    // ~/.config/wallust/wezterm/colors-wezterm.toml, the hand-tuned file that
+    // configs/wezterm.nix treats as the source of truth. Regenerate by hand
+    // when you actually want new colors.
+    // noctalia-shell is a user unit now (configs/theming/noctalia.nix), pulled
+    // in by graphical-session.target, so that a rebuild restarts it and its
+    // ipc keybinds keep pointing at the running instance.
     spawn-at-startup "xwayland-satellite"
     spawn-at-startup "systemctl" "--user" "start" "hyprpolkitagent"
-    spawn-at-startup "mpd"
     spawn-at-startup "nm-applet"
     spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
     spawn-at-startup "blueman-applet"
     spawn-at-startup "sunsetr"
-    spawn-at-startup "swaync"
+    // Notifications are owned by noctalia-shell; swaync is not started.
     // TODO: Change to quickshell
     // spawn-at-startup "waybar"
 
@@ -240,6 +244,23 @@
         clip-to-geometry true
     }
 
+    // Blur the wallpaper behind rofi, which is what HyDE fakes by baking a
+    // blurred copy of the wallpaper into ~/.cache/hyde/wall.blur and drawing it
+    // as a background-image. niri does it for real through ext-background-
+    // effect, so nothing has to be regenerated on a wallpaper change.
+    //
+    // rofi sizes its layer surface to the window (launcher.rasi and runner.rasi
+    // both set fullscreen off and a fixed width), so the blur lands under the
+    // window and nowhere else. The radius has to be repeated here because niri
+    // cannot read the rasi: keep it equal to `border-radius` in both themes.
+    layer-rule {
+        match namespace="^rofi$"
+        geometry-corner-radius 20
+        background-effect {
+            blur true
+        }
+    }
+
     binds {
         // Keys consist of modifiers separated by + signs, followed by an XKB key name
         // in the end. To find an XKB name for a particular key, you may use a program
@@ -253,11 +274,11 @@
 
         Mod+Shift+Slash { show-hotkey-overlay; }
         Mod+T hotkey-overlay-title="Open a Terminal: wezterm" { spawn "wezterm"; }
-        Mod+A hotkey-overlay-title="Run an Application: rofi" { spawn-sh "noctalia-shell ipc call launcher toggle"; }
+        Mod+A hotkey-overlay-title="Run an Application: rofi" { spawn-sh "rofi -show drun -theme ~/.config/rofi/launcher.rasi"; }
         Super+Alt+L hotkey-overlay-title="Lock the Screen: hyprlock" { spawn "hyprlock"; }
         Super+B hotkey-overlay-title="Spawn Browser: zen" {spawn "zen"; }
         Super+E hotkey-overlay-title="Spawn Explorer: nautilus" {spawn "nautilus"; }
-        Super+Space hotkey-overlay-title="Spawn runner: Anyrun" { spawn-sh "anyrun --show-results-immediately true | wl-copy"; }
+        Super+Space hotkey-overlay-title="Quick runner: rofi calc/emoji/web/run" { spawn-sh "rofi -show calc -theme ~/.config/rofi/runner.rasi"; }
         Super+V { spawn-sh "noctalia-shell ipc call launcher clipboard"; }
         Ctrl+Alt+Delete { spawn-sh "noctalia-shell ipc call sessionMenu toggle"; }
 

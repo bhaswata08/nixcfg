@@ -1,0 +1,13 @@
+[package]
+name = "latex2unicode"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+term-maths = "1.0.0"
+unicodeit = "0.2.1"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
