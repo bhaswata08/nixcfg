@@ -1,0 +1,64 @@
+/*
+ * Nebula's tuning variables at their stock values, imported by the generated
+ * userChrome.css. Declared in configs/zen.nix.
+ *
+ * Nebula reads every colour and measurement from a --var-nebula-* property.
+ * Upstream ships the values in preferences.json and expects Sine, its mod
+ * loader, to write them into about:config and inject them as custom properties.
+ * Nothing here uses Sine, so they are set directly instead. Every value below
+ * is copied from that preferences.json verbatim, so this is Nebula as it ships.
+ *
+ * nebula/config.css does carry a "Pre-defined backup values" block with these
+ * same numbers, but it cannot be leaned on. The block that reads
+ * --var-nebula-* is marked !important and so wins the cascade outright; when
+ * those properties are undefined its var() references are invalid at
+ * computed-value time, which leaves the custom property guaranteed-invalid
+ * rather than falling back to the losing declaration underneath. The backup
+ * block only ever applies if the important one is absent, which it never is.
+ *
+ * The palette is deliberately neutral, black and white at varying alpha, and
+ * does not follow the wallpaper. An earlier version rendered these through
+ * noctalia so the glass tracked the colour scheme; this is the upstream look
+ * instead. Bringing that back means restoring the noctalia user-template and
+ * swapping the rgba() values for {{colors...}} placeholders.
+ *
+ * Transparency comes from niri, not from here: the catch-all window-rule in
+ * configs/theming/niri.nix draws every window at opacity 0.87 over a blur.
+ * Nebula's glass is layered on top of whatever zen paints behind it, which is
+ * how it looks upstream.
+ */
+
+:root {
+  /* Glass & blur. */
+  --var-nebula-glass-blur: 32px;
+  --var-nebula-glass-saturation: 140%;
+  --var-nebula-color-glass-light: rgba(255, 255, 255, 0.4);
+  --var-nebula-color-glass-dark: rgba(0, 0, 0, 0.4);
+
+  /* Layout. */
+  --var-nebula-border-radius: 13px;
+  --var-nebula-essentials-width: 60px;
+  --var-nebula-workspace-grayscale: 100%;
+
+  /* UI and website tint. The website tint is fully transparent upstream: a
+     page brings its own background and tinting it fights whatever the site
+     chose. */
+  --var-nebula-ui-tint-light: rgba(255, 255, 255, 0.2);
+  --var-nebula-ui-tint-dark: rgba(0, 0, 0, 0.2);
+  --var-nebula-website-tint-light: rgba(255, 255, 255, 0);
+  --var-nebula-website-tint-dark: rgba(0, 0, 0, 0);
+
+  /* The tab ladder: resting, default, hover, selected. */
+  --var-nebula-tabs-minimum-light: rgba(255, 255, 255, 0.1);
+  --var-nebula-tabs-minimum-dark: rgba(0, 0, 0, 0.2);
+  --var-nebula-tabs-default-light: rgba(255, 255, 255, 0.25);
+  --var-nebula-tabs-default-dark: rgba(0, 0, 0, 0.35);
+  --var-nebula-tabs-hover-light: rgba(255, 255, 255, 0.35);
+  --var-nebula-tabs-hover-dark: rgba(0, 0, 0, 0.45);
+  --var-nebula-tabs-selected-light: rgba(255, 255, 255, 0.45);
+  --var-nebula-tabs-selected-dark: rgba(0, 0, 0, 0.55);
+
+  /* Shadows. */
+  --var-nebula-color-shadow-light: rgba(255, 255, 255, 0.055);
+  --var-nebula-color-shadow-dark: rgba(0, 0, 0, 0.55);
+}

@@ -1,5 +1,4 @@
 {
-  config,
   inputs,
   lib,
   ...
@@ -12,10 +11,10 @@ let
   nebulaChrome = "${inputs.zen-nebula}/userChrome.css";
   nebulaContent = "${inputs.zen-nebula}/userContent.css";
 
-  # Rendered by noctalia, imported after Nebula. Only defines --var-nebula-*,
-  # which Nebula reads and never sets itself, so the import order between the
-  # two does not actually matter.
-  nebulaVars = "${config.xdg.cacheHome}/noctalia/zen-browser/nebula-vars.css";
+  # Nebula's stock tuning values, which upstream expects its mod loader to
+  # supply. Imported after Nebula, though the order does not actually matter:
+  # the file only defines --var-nebula-*, which Nebula reads and never sets.
+  nebulaVars = "${./zen/nebula-vars.css}";
 
   # The profile's chrome/ files are generated whole rather than appended to, so
   # a bumped zen-nebula input cannot leave a stale store path behind. Anything
@@ -45,45 +44,41 @@ in
   #
   # Nebula normally installs through Sine, a mod loader that needs
   # fx-autoconfig. None of that is used here. Its colours are plain custom
-  # properties, which the template below defines, and its feature toggles are
+  # properties, which zen/nebula-vars.css defines, and its feature toggles are
   # read with @media (-moz-pref(...)), which Firefox evaluates against
   # about:config directly, so prefs in user.js are enough. What is given up is
-  # Nebula's own settings UI and its optional nebula.uc.js, which adds
-  # behaviour rather than looks.
-  programs.noctalia-shell.user-templates.templates.zenNebula = {
-    input_path = "${./zen/nebula-vars-template.css}";
-    output_path = nebulaVars;
-  };
+  # Nebula's own settings UI and its nebula.uc.js, which sets three toolbar
+  # attributes that only affect pinned-extension geometry.
+  #
+  # Nebula runs at its stock values and does not follow the wallpaper. It used
+  # to: zen/nebula-vars-template.css rendered the glass and the tab ladder from
+  # the noctalia palette. That is gone, along with the noctalia user-template
+  # that drove it, so ~/.cache/noctalia/zen-browser/ is now dead and can be
+  # deleted by hand.
+  #
+  # Transparency comes from niri rather than from the browser. zen declares its
+  # whole Wayland surface opaque and, measured against a screenshot, keeps doing
+  # so even with widget.wayland.opaque-region.enabled off: the toolbar reads an
+  # identical value at every x while the wallpaper above it swings across a
+  # third of the colour wheel. So the catch-all window-rule in
+  # configs/theming/niri.nix does the work at opacity 0.87. That dims the web
+  # content along with the chrome, which is a known and accepted cost.
 
-  # Three prefs, all off by default in zen's greprefs.js, and all three are
-  # needed before any of the above is visible:
+  # toolkit.legacyUserProfileCustomizations.stylesheets gates userChrome.css and
+  # userContent.css entirely, and without it none of the above loads. zen does
+  # flip it itself when it finds a user stylesheet, but only inside _migrateV1,
+  # a one-shot keyed on the profile's migration version, so a profile created
+  # before this existed never runs it.
   #
-  # toolkit.legacyUserProfileCustomizations.stylesheets gates userChrome.css
-  # and userContent.css entirely. zen does flip it itself when it finds a user
-  # stylesheet, but only inside _migrateV1, a one-shot keyed on the profile's
-  # migration version, so a profile created before this existed never runs it.
-  #
-  # zen.widget.linux.transparency drops the opaque background off #main-window,
-  # which is what lets any alpha in the theme reach the compositor at all.
-  #
-  # widget.wayland.opaque-region.enabled is off beside it. Firefox tells the
-  # compositor which part of its surface is fully opaque, as a hint that lets
-  # the compositor skip blending and skip drawing what is behind, and it claims
-  # the whole window. Turning that off is necessary but, measured on this build,
-  # not sufficient: with all four prefs set and zen on native Wayland, sampling
-  # a screenshot along the toolbar gives the same value at every x while the
-  # wallpaper directly above it swings from #86CBE1 to #4A495E. Not one pixel of
-  # bleed. Something below the chrome is still opaque and it is not this. The
-  # pref stays because it is a real precondition, not because it was the fix.
-  # The only see-through zen has ever had came from niri's own opacity, applied
-  # on top of the surface rather than through it.
-  #
-  # browser.tabs.allow_transparent_browser lets the content area go
-  # transparent, which is what Nebula's backdrop-filter needs something to
-  # frost over.
+  # The other three prefs this used to write, zen.widget.linux.transparency,
+  # widget.wayland.opaque-region.enabled and
+  # browser.tabs.allow_transparent_browser, are gone. All three were aimed at
+  # getting the browser to draw its own translucency, and the measurement above
+  # says they do not. Copies already appended to a profile's user.js stay there
+  # until removed by hand; they are inert.
   #
   # user.js rather than prefs.js: the browser rewrites prefs.js on exit and
-  # re-reads user.js on every start, so these survive a reset from inside the
+  # re-reads user.js on every start, so this survives a reset from inside the
   # browser.
   #
   # The glob matches on chrome/ rather than on any directory under
@@ -103,19 +98,14 @@ in
 
       # Appending needs a shell redirect, which `run` cannot wrap without the
       # redirect firing during a dry run too, so the dry run is handled here.
-      for pref in \
-        'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);' \
-        'user_pref("zen.widget.linux.transparency", true);' \
-        'user_pref("widget.wayland.opaque-region.enabled", false);' \
-        'user_pref("browser.tabs.allow_transparent_browser", true);'
-      do
-        grep -Fqs "$pref" "$profile/user.js" && continue
+      pref='user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);'
+      if ! grep -Fqs "$pref" "$profile/user.js"; then
         if [[ -v DRY_RUN ]]; then
           echo "would append to $profile/user.js: $pref"
         else
           printf '%s\n' "$pref" >> "$profile/user.js"
         fi
-      done
+      fi
     done
   '';
 }
