@@ -6,7 +6,9 @@
  * Upstream ships the values in preferences.json and expects Sine, its mod
  * loader, to write them into about:config and inject them as custom properties.
  * Nothing here uses Sine, so they are set directly instead. Every value below
- * is copied from that preferences.json verbatim, so this is Nebula as it ships.
+ * is copied from that preferences.json verbatim, so this is Nebula as it ships,
+ * with one exception: the dark half of the tab ladder, which is unreadable here
+ * for the reason given at that block.
  *
  * nebula/config.css does carry a "Pre-defined backup values" block with these
  * same numbers, but it cannot be leaned on. The block that reads
@@ -48,15 +50,27 @@
   --var-nebula-website-tint-light: rgba(255, 255, 255, 0);
   --var-nebula-website-tint-dark: rgba(0, 0, 0, 0);
 
-  /* The tab ladder: resting, default, hover, selected. */
+  /* The tab ladder: resting, default, hover, selected.
+     The light rungs are upstream's. The dark ones are not, and this is the one
+     place that departs from stock, because upstream's do not work here.
+     Upstream darkens in dark mode, black from 20% up to 55%, which reads only
+     against zen's colourful workspace gradient. This chrome has no gradient
+     behind the tabs, so all four rungs subtract from a backdrop already down at
+     (15,16,17) and the whole ladder collapses: measured off a screenshot, a
+     resting tab came out bit-identical to the gap beside it and the selected
+     tab sat one level away from the hovered one. Overlaying white instead
+     lifts off that backdrop rather than clipping into it, so the same four
+     rungs land near 25, 32, 44 and 63. The alphas are far lower than
+     upstream's because adding light to near-black moves much faster than
+     taking it away. */
   --var-nebula-tabs-minimum-light: rgba(255, 255, 255, 0.1);
-  --var-nebula-tabs-minimum-dark: rgba(0, 0, 0, 0.2);
+  --var-nebula-tabs-minimum-dark: rgba(255, 255, 255, 0.04);
   --var-nebula-tabs-default-light: rgba(255, 255, 255, 0.25);
-  --var-nebula-tabs-default-dark: rgba(0, 0, 0, 0.35);
+  --var-nebula-tabs-default-dark: rgba(255, 255, 255, 0.07);
   --var-nebula-tabs-hover-light: rgba(255, 255, 255, 0.35);
-  --var-nebula-tabs-hover-dark: rgba(0, 0, 0, 0.45);
+  --var-nebula-tabs-hover-dark: rgba(255, 255, 255, 0.12);
   --var-nebula-tabs-selected-light: rgba(255, 255, 255, 0.45);
-  --var-nebula-tabs-selected-dark: rgba(0, 0, 0, 0.55);
+  --var-nebula-tabs-selected-dark: rgba(255, 255, 255, 0.2);
 
   /* Shadows. */
   --var-nebula-color-shadow-light: rgba(255, 255, 255, 0.055);
