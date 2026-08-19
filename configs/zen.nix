@@ -70,12 +70,26 @@ in
   # a one-shot keyed on the profile's migration version, so a profile created
   # before this existed never runs it.
   #
-  # The other three prefs this used to write, zen.widget.linux.transparency,
-  # widget.wayland.opaque-region.enabled and
-  # browser.tabs.allow_transparent_browser, are gone. All three were aimed at
-  # getting the browser to draw its own translucency, and the measurement above
-  # says they do not. Copies already appended to a profile's user.js stay there
-  # until removed by hand; they are inert.
+  # browser.tabs.allow_transparent_browser is pinned off rather than dropped.
+  # It was one of three prefs this used to write to get the browser to draw its
+  # own translucency, and an earlier version of this comment called all three
+  # inert once they stopped being written. That was wrong about this one. It
+  # takes the background off the <browser> element, which is the page canvas,
+  # so a site that paints no background on html or body no longer comes out
+  # white: every pixel the page does not paint shows the blurred desktop
+  # instead. Legacy sites that colour only their own tables read as though
+  # something forced dark mode on them.
+  #
+  # Dropping the line is not enough, because the browser rewrites prefs.js on
+  # exit and a profile that was ever switched on keeps the true there. Writing
+  # false is what actually resets it.
+  #
+  # The other two, zen.widget.linux.transparency and
+  # widget.wayland.opaque-region.enabled, are left alone. They really are inert
+  # given that niri does the transparency from outside, and the opaque region
+  # in particular was measured twice with opposite conclusions, so returning it
+  # to its default is a change worth making on its own evidence rather than as
+  # a side effect of this fix.
   #
   # user.js rather than prefs.js: the browser rewrites prefs.js on exit and
   # re-reads user.js on every start, so this survives a reset from inside the
@@ -96,16 +110,32 @@ in
         builtins.toFile "userContent.css" userContentCss
       } "$chrome/userContent.css"
 
+      # Each key is dropped from user.js before its line is appended, so a key
+      # already written at the wrong value is corrected rather than duplicated.
       # Appending needs a shell redirect, which `run` cannot wrap without the
       # redirect firing during a dry run too, so the dry run is handled here.
-      pref='user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);'
-      if ! grep -Fqs "$pref" "$profile/user.js"; then
+      for pref in ${
+        lib.escapeShellArgs [
+          "toolkit.legacyUserProfileCustomizations.stylesheets=true"
+          "browser.tabs.allow_transparent_browser=false"
+        ]
+      }; do
+        key="''${pref%%=*}"
+        line="user_pref(\"$key\", ''${pref#*=});"
+        grep -Fqxs "$line" "$profile/user.js" && continue
+
         if [[ -v DRY_RUN ]]; then
-          echo "would append to $profile/user.js: $pref"
+          echo "would set in $profile/user.js: $line"
         else
-          printf '%s\n' "$pref" >> "$profile/user.js"
+          if [ -e "$profile/user.js" ]; then
+            # grep exits 1 when it prints nothing, which set -e would treat as
+            # a failure even though an empty result is a valid rewrite.
+            grep -Fv "user_pref(\"$key\"," "$profile/user.js" > "$profile/user.js.tmp" || true
+            mv "$profile/user.js.tmp" "$profile/user.js"
+          fi
+          printf '%s\n' "$line" >> "$profile/user.js"
         fi
-      fi
+      done
     done
   '';
 }

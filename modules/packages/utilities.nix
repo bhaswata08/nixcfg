@@ -44,6 +44,7 @@
     nftables
     ngrok
     file
+    ventoy
   ];
 
   programs.appimage.enable = true;
