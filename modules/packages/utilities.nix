@@ -44,7 +44,7 @@
     nftables
     ngrok
     file
-    ventoy
+    ventoy-full-gtk
   ];
 
   programs.appimage.enable = true;
