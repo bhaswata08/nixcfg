@@ -13,6 +13,13 @@ config.line_height = 1.2
 config.enable_tab_bar = false
 config.window_decorations = "NONE"
 config.window_background_opacity = 0.70
+-- The OpenGL front end renders a completely empty surface on this machine
+-- (Intel UHD 770, Mesa 26.2.0): wezterm logs "OpenGL initialized!" and runs
+-- paint_impl, but the buffer it hands the compositor is fully transparent, so
+-- the window shows only niri's blurred backdrop and no text. WebGpu (Vulkan)
+-- draws correctly and is still GPU accelerated, unlike the Software front end.
+-- Retry the default after a Mesa or wezterm bump.
+config.front_end = "WebGpu"
 
 -- COLORS
 local function load_wal_colors()

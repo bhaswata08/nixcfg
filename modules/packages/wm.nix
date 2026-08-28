@@ -10,6 +10,7 @@
     brightnessctl
     xwayland-satellite
     wezterm
+    kitty
     awww
     fastfetch
     hyprpolkitagent

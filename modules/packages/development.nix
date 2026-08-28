@@ -98,6 +98,7 @@
     claude-code
     gh
     flyctl
+    opencode
   ];
   programs.direnv = {
     enable = true;

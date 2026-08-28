@@ -34,17 +34,17 @@
     vulkan-tools
     steam-run
     motrix
+    motrix-next
     flatpak
     wl-mirror
     jq
     scrcpy
     android-tools
-    ventoy
     iptables
     nftables
     ngrok
     file
-    ventoy-full-gtk
+    yazi
   ];
 
   programs.appimage.enable = true;

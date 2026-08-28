@@ -13,6 +13,13 @@
   # Skills, vendored per file (recursive) so hand-installed skills can still be
   # dropped into ~/.claude/skills without colliding with this entry.
   #
+  # Only vendor a skill no installer owns. find-skills, lavish and marimo-pair
+  # used to live here too, but the skill installer tracks them in
+  # ~/.agents/.skill-lock.json and symlinks them into ~/.claude/skills. Two
+  # owners for one path made checkLinkTargets abort the whole activation with
+  # "would be clobbered", so nothing at all got linked. The installer keeps
+  # those three current; this list keeps the rest.
+  #
   # herdr comes from upstream ogulcancelik/herdr; re-vendor with:
   #   curl -sL https://raw.githubusercontent.com/ogulcancelik/herdr/master/skills/herdr/SKILL.md \
   #     -o configs/claude/skills/herdr/SKILL.md
