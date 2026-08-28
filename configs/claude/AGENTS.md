@@ -1,6 +1,7 @@
 # Global agent instructions
 
 - Never use the em dash "—". Use plain dash "-" instead
+- Dont use the following pattern: "It's not just X, it's Y", "..., no guessing", just state the point directly
 - When writing commit messages, NEVER auto-add your agent name as co-author
 - Never manually modify CHANGELOG.md files or any files that are marked as auto-generated
 - When making technical decisions, do not give much weight to development cost.
