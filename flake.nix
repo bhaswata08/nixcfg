@@ -63,6 +63,9 @@
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
+            # Move unmanaged files aside instead of aborting activation when a
+            # newly-managed path already exists on disk.
+            home-manager.backupFileExtension = "hm-bak";
 
             home-manager.extraSpecialArgs = {
               inherit inputs;

@@ -226,6 +226,17 @@
         }
     }
 
+    // WezTerm already sets its own window_background_opacity, which fades only
+    // the background and leaves glyphs fully opaque. The `match {}` rule above
+    // then multiplies a second 0.87 over the whole surface, text included, so
+    // the two compound to ~0.61 background with 87% text on top of a blurred
+    // wallpaper. Pin the terminal to opaque compositing and let its own
+    // background alpha be the only transparency; the blur still applies.
+    window-rule {
+        match app-id=r#"^org\.wezfurlong\.wezterm$"#
+        opacity 1.0
+    }
+
     window-rule {
         match app-id=r#"zen$"# title="^Picture-in-Picture$"
         open-floating true

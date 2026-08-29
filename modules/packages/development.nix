@@ -98,6 +98,7 @@
     claude-code
     gh
     flyctl
+    kitty
   ];
   programs.direnv = {
     enable = true;
