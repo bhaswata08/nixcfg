@@ -39,7 +39,6 @@
     jq
     scrcpy
     android-tools
-    ventoy
     iptables
     nftables
     ngrok
