@@ -25,8 +25,8 @@
     # cv2, matplotlib, and torchvision reach for these even on headless runs.
     glib
     libGL
-    xorg.libX11
-    xorg.libXext
+    libX11
+    libXext
     zstd
   ];
 }

@@ -16,6 +16,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    hermes-agent.url = "github:NousResearch/hermes-agent";
+
     # Nebula, the glass theme zen's chrome is skinned with (configs/zen.nix).
     # Plain CSS, not a flake.
     #
@@ -73,6 +75,7 @@
           # it themed nothing and only emitted a deprecation warning.
           inputs.home-manager.nixosModules.home-manager
           ./configuration.nix
+          inputs.hermes-agent.nixosModules.default
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
