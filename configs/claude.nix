@@ -10,6 +10,9 @@
   home.file."AGENTS.md".source = ./claude/AGENTS.md;
   home.file.".claude/CLAUDE.md".source = ./claude/AGENTS.md;
 
+  # Default prose style, inlined by AGENTS.md via Claude Code's @path import.
+  home.file.".claude/soul.md".source = ./claude/soul.md;
+
   # Skills, vendored per file (recursive) so hand-installed skills can still be
   # dropped into ~/.claude/skills without colliding with this entry.
   #

@@ -1,3 +1,7 @@
+# Prose style: plain, direct English by default
+
+@~/.claude/soul.md
+
 # Global agent instructions
 
 - Never use the em dash "—". Use plain dash "-" instead
