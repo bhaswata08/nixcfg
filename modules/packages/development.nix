@@ -96,6 +96,7 @@
     opencode
     antigravity-ide
     claude-code
+    antigravity-cli
     gh
     flyctl
     opencode
