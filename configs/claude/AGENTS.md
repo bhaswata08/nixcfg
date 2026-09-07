@@ -43,13 +43,23 @@ review yourself.
 
 When to use which:
 
-- Prefer a seat over spawning `general-purpose` Claude subagents for coding
-  work. Those run on your own model, so five of them is five times the cost of
-  one delegation for work `coder` was set up to absorb.
-- Keep `Explore` and `general-purpose` for search and reading, where the point
-  is to keep large output out of your context rather than to write code.
+- Send `coder` anything that needs to understand the repo: reproducing a bug,
+  tracing a failure, working out why a test breaks, reading code to explain how
+  it works, triaging issues. Investigation counts. The seat does not have to
+  produce an edit to be the right one, and "it is only reading" is not a reason
+  to keep the work on your own model.
+- Use `Explore` and `general-purpose` only to locate things. Which file defines
+  this, where is it called, does this pattern appear anywhere. The answer is a
+  path or a short list. As soon as the answer is an explanation, it belongs in a
+  seat.
 - Do the work yourself when it is small enough that describing it takes as long
   as doing it.
+
+On fanning out: `coder` runs on opencode's free contributor tier, which has
+returned `429 Rate limit exceeded` under load and stalled a session. Dispatch
+two or three at a time and let them finish, rather than launching five at once.
+`reviewer` and `adversary` cannot fan out at all, per the concurrency limit
+below.
 
 `reviewer` and `adversary` both spend the same synthetic.new key, and that plan
 allows one agent at a time. Never run them together, and do not run either
