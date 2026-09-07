@@ -8,6 +8,7 @@
     ./configs/theming/niri.nix
     ./configs/theming/noctalia.nix
     ./configs/theming/themes.nix
+    ./configs/antigravity.nix
     ./configs/claude.nix
     ./configs/nushell.nix
     ./configs/nvim.nix
