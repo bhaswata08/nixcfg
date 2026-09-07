@@ -24,6 +24,41 @@
 - No marketing adjectives: seamless, robust, powerful, cutting-edge, effortless, world-class, next-generation, revolutionary.
 - No complicated english, if the idea can be conveyed with simple english, do so.
 
+# Delegating work to other models
+
+Three agent seats run on models other than yours, configured in
+`~/.config/opencode/agent/`. Reach them through the `opencode-rescue` subagent,
+which forwards to the opencode companion CLI. They are not available through
+the built-in `Agent` tool.
+
+- `coder` writes code. Send it substantial implementation and debugging work.
+- `reviewer` reviews a diff and reports findings. It cannot edit.
+- `adversary` reviews a plan or design and reports holes. It cannot edit.
+
+Each seat has a second model that takes over when the first cannot be reached.
+That happens inside the plugin, so you do not arrange it. The exception is
+`reviewer`: its fallback is a Claude Code subagent on Sonnet, which only you can
+start, so a job that fails with a `handoff` marker is asking you to run that
+review yourself.
+
+When to use which:
+
+- Prefer a seat over spawning `general-purpose` Claude subagents for coding
+  work. Those run on your own model, so five of them is five times the cost of
+  one delegation for work `coder` was set up to absorb.
+- Keep `Explore` and `general-purpose` for search and reading, where the point
+  is to keep large output out of your context rather than to write code.
+- Do the work yourself when it is small enough that describing it takes as long
+  as doing it.
+
+`reviewer` and `adversary` both spend the same synthetic.new key, and that plan
+allows one agent at a time. Never run them together, and do not run either
+alongside `synclaude`. Review one after the other, or send the second one to
+Sonnet.
+
+You orchestrate. Read the result, judge it, and decide what happens next. A seat
+reporting success is not evidence the work is right, so check the diff.
+
 # AVOID the following
 
 - Negative Parallelisms and Tailing Negations: Constructions like "Not only...but..." or "It's not just about..., it's..." are overused. So are clipped tailing-negation fragments such as "no guessing" or "no wasted motion" tacked onto the end of a sentence instead of written as a real clause.
