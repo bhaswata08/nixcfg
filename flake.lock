@@ -274,6 +274,23 @@
         "type": "github"
       }
     },
+    "opencode-plugin-cc": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788760805,
+        "narHash": "sha256-0IGnnL/+ikpiLWEru7RoHBseLhHG3T3Vw87HNTert5I=",
+        "owner": "bhaswata08",
+        "repo": "opencode-plugin-cc",
+        "rev": "5987e29c36d19031f502f9cd4cadd54df51ba6b5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "bhaswata08",
+        "ref": "agy-transport",
+        "repo": "opencode-plugin-cc",
+        "type": "github"
+      }
+    },
     "pfm": {
       "inputs": {
         "nixpkgs": [
@@ -397,6 +414,7 @@
         "home-manager": "home-manager_2",
         "nixpkgs": "nixpkgs_2",
         "noctalia": "noctalia",
+        "opencode-plugin-cc": "opencode-plugin-cc",
         "pfm": "pfm",
         "qml-niri": "qml-niri",
         "zen-browser": "zen-browser",

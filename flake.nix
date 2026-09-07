@@ -51,6 +51,14 @@
       url = "github:ogulcancelik/herdr";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Fork of tasict/opencode-plugin-cc carrying the antigravity (agy)
+    # transport, which upstream does not have. Fix loop for that transport:
+    # commit in the checkout, push to this fork, nix flake update, just switch.
+    opencode-plugin-cc = {
+      url = "github:bhaswata08/opencode-plugin-cc/agy-transport";
+      flake = false;
+    };
   };
 
   outputs =
