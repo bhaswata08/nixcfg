@@ -42,13 +42,13 @@ let
   # the next `nix-collect-garbage -d` deletes that path and the daemon stops starting.
   no-mistakes = pkgs.buildGoModule rec {
     pname = "no-mistakes";
-    version = "1.45.3";
+    version = "1.64.0";
 
     src = pkgs.fetchFromGitHub {
       owner = "kunchenguid";
       repo = "no-mistakes";
       rev = "v${version}";
-      hash = "sha256-uII42yFLpyo4rTHPVMJn1lsuhBo566BtcO52/1xsxCQ=";
+      hash = "sha256-vJ3DO+n/q08C8Ck3czxKQBBlry3fid0NLFuW37TRlWc=";
     };
 
     vendorHash = "sha256-NZOYxNYvt4192uqKBdKRxdgrKFvWx3585psdCnRdPSM=";
