@@ -39,3 +39,12 @@ def --env y [...args] {
 }
 
 alias oc = opencode
+
+# Second Claude Code account. Claude Code keeps credentials, settings and
+# sessions in one directory, so a separate CLAUDE_CONFIG_DIR is a separate
+# login. ~/.claude stays on the work account; this one is personal.
+def --wrapped ccp [...args] {
+  with-env { CLAUDE_CONFIG_DIR: ($env.HOME | path join ".claude-personal") } {
+    ^claude ...$args
+  }
+}

@@ -95,6 +95,11 @@ def synclaude [
         CLAUDE_CODE_SUBAGENT_MODEL: $big
         CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
         CLAUDE_CODE_MAX_CONTEXT_TOKENS: ($max_context | into string)
+
+        # Inference goes to Synthetic, so the Anthropic account only decides
+        # where sessions, history and settings are written. Keep that on the
+        # personal profile (the one `ccp` uses) rather than the work account.
+        CLAUDE_CONFIG_DIR: ($env.HOME | path join ".claude-personal")
     } { ^claude ...$args }
 }
 
@@ -316,4 +321,76 @@ def --env heal-claude-session [
         return
     }
     heal-claude-session fix $picked.path $dry_run
+}
+
+
+# Path to the opencode companion script inside the claude plugins cache.
+# The 'current' segment is a stable symlink that survives plugin version bumps.
+const OPENCODE_COMPANION = "~/.claude/plugins/cache/tasict-opencode-plugin-cc/opencode/current/scripts/opencode-companion.mjs"
+
+def opencode-companion [...args: string] {
+    ^node ($OPENCODE_COMPANION | path expand) ...$args
+}
+
+# Inspect or manage opencode companion background jobs.
+#
+# The opencode companion script tracks background jobs dispatched during
+# opencode sessions. This command wraps the companion script for fast shell access.
+#
+#   oco                 # show this help text
+#   oco status          # show running and recent jobs
+#   oco watch           # refresh status every 5 seconds
+#   oco result <job>    # show full output for a job
+#   oco cancel <job>    # cancel a running job
+def oco [] {
+    help oco
+}
+
+# Show running and recent opencode jobs for the current workspace.
+#
+# Jobs are per-workspace. The list shows only jobs started in or near the
+# current directory. A job dispatched from another repository will not appear.
+#
+#   oco status
+def "oco status" [] {
+    opencode-companion status
+}
+
+# Watch opencode job status refreshed every 5 seconds.
+#
+# Refreshes the display in a loop until interrupted with Ctrl-C.
+#
+#   oco watch
+def "oco watch" [] {
+    loop {
+        clear
+        oco status
+        sleep 5sec
+    }
+}
+
+# Display full output for an opencode job.
+#
+# Prints the full output log of a job. The job argument accepts a full job id
+# or any unique prefix.
+#
+#   oco result task-mtr4nxgf
+#   oco result mtr4
+def "oco result" [
+    job: string  # job id or unique prefix
+] {
+    opencode-companion result $job
+}
+
+# Cancel a running opencode job.
+#
+# Sends a cancellation signal to an active background job. The job argument
+# accepts a full job id or any unique prefix.
+#
+#   oco cancel task-mtr6swq3
+#   oco cancel mtr6
+def "oco cancel" [
+    job: string  # job id or unique prefix
+] {
+    opencode-companion cancel $job
 }

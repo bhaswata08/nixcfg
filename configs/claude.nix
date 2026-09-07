@@ -40,6 +40,18 @@ in
     recursive = true;
   };
 
+  # Second Claude account. `ccp` (configs/nushell/aliases.nu) points
+  # CLAUDE_CONFIG_DIR here, which gives that account its own credentials and
+  # sessions while sharing the instructions and skills below. soul.md is not
+  # mirrored: AGENTS.md imports it as @~/.claude/soul.md, an absolute path both
+  # profiles read. settings.json is left out on purpose: the plugin registry
+  # script rewrites it in place, and the second profile does not need the plugin.
+  home.file.".claude-personal/CLAUDE.md".source = ./claude/AGENTS.md;
+  home.file.".claude-personal/skills" = {
+    source = ./claude/skills;
+    recursive = true;
+  };
+
   # OpenCode plugin for Claude Code.
   # Both versioned and 'current' cache directories are created. Claude Code
   # sessions cache hook paths when they start, so pointing the registry at a
