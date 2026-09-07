@@ -40,9 +40,15 @@ in
     recursive = true;
   };
 
-  # OpenCode plugin for Claude Code
+  # OpenCode plugin for Claude Code.
+  # Both versioned and 'current' cache directories are created. Claude Code
+  # sessions cache hook paths when they start, so pointing the registry at a
+  # versioned path orphans running sessions whenever the plugin version bumps.
+  # The 'current' symlink provides a stable path across generations while
+  # keeping the versioned directory available for tools that reference it.
   home.file.".claude/plugins/marketplaces/tasict-opencode-plugin-cc".source = opencodePluginSrc;
   home.file.".claude/plugins/cache/tasict-opencode-plugin-cc/opencode/${pluginVersion}".source = "${opencodePluginSrc}/plugins/opencode";
+  home.file.".claude/plugins/cache/tasict-opencode-plugin-cc/opencode/current".source = "${opencodePluginSrc}/plugins/opencode";
 
   home.activation.claudeOpencodePlugin = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     PLUGINS_DIR="$HOME/.claude/plugins"
@@ -89,7 +95,7 @@ in
 
     inst['plugins']['opencode@tasict-opencode-plugin-cc'] = [{
         'scope': 'user',
-        'installPath': os.path.expanduser('~/.claude/plugins/cache/tasict-opencode-plugin-cc/opencode/${pluginVersion}'),
+        'installPath': os.path.expanduser('~/.claude/plugins/cache/tasict-opencode-plugin-cc/opencode/current'),
         'version': '${pluginVersion}',
         'installedAt': now,
         'lastUpdated': now
