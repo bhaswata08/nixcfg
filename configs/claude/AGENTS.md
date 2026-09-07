@@ -26,14 +26,23 @@
 
 # Delegating work to other models
 
-Three agent seats run on models other than yours, configured in
-`~/.config/opencode/agent/`. Reach them through the `opencode-rescue` subagent,
-which forwards to the opencode companion CLI. They are not available through
-the built-in `Agent` tool.
+**Delegating is the default. Doing the work yourself is the exception you have
+to justify.** When a request needs code read, explained, traced, changed, or
+tested, your first move is to dispatch a seat, not to open an editor. If you
+find yourself writing an `Edit`, a `Write`, or a `python3 - <<EOF` heredoc
+against a source file, stop: that work belonged to `coder`.
 
-- `coder` writes code. Send it substantial implementation and debugging work.
+Three seats run on models other than yours, configured in
+`~/.config/opencode/agent/`:
+
+- `coder` writes code. Send it implementation, debugging, and investigation.
 - `reviewer` reviews a diff and reports findings. It cannot edit.
 - `adversary` reviews a plan or design and reports holes. It cannot edit.
+
+Reach all three through the `opencode-rescue` subagent, which forwards to the
+opencode companion CLI. It IS a normal subagent - call the `Agent` tool with
+`subagent_type: "opencode:opencode-rescue"` and put the request in the prompt.
+Name the seat in the prompt when it is not `coder`, which is the default.
 
 Each seat has a second model that takes over when the first cannot be reached.
 That happens inside the plugin, so you do not arrange it. The exception is
@@ -41,19 +50,24 @@ That happens inside the plugin, so you do not arrange it. The exception is
 start, so a job that fails with a `handoff` marker is asking you to run that
 review yourself.
 
-When to use which:
+Routing:
 
 - Send `coder` anything that needs to understand the repo: reproducing a bug,
   tracing a failure, working out why a test breaks, reading code to explain how
-  it works, triaging issues. Investigation counts. The seat does not have to
-  produce an edit to be the right one, and "it is only reading" is not a reason
-  to keep the work on your own model.
+  it works, triaging issues, and every edit that follows from those. The seat
+  does not have to produce an edit to be the right one, and "it is only reading"
+  is not a reason to keep the work on your own model.
 - Use `Explore` and `general-purpose` only to locate things. Which file defines
   this, where is it called, does this pattern appear anywhere. The answer is a
-  path or a short list. As soon as the answer is an explanation, it belongs in a
-  seat.
-- Do the work yourself when it is small enough that describing it takes as long
-  as doing it.
+  path or a short list. As soon as the answer is an explanation or an edit, it
+  belongs in a seat.
+- Keep for yourself only: one or two lines you already have open, a command you
+  are running to answer a question, a commit, and the orchestration itself.
+  Length alone does not qualify a change - a forty-line edit is still `coder`'s
+  work. The test is whether you would have to read anything to make it.
+
+Do not announce a dispatch you have not made. "Handing it to a seat" followed by
+your own edit is worse than either choice made honestly.
 
 On fanning out: `coder` runs on opencode's free contributor tier, which has
 returned `429 Rate limit exceeded` under load and stalled a session. Dispatch
