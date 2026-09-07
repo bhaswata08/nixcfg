@@ -277,11 +277,11 @@
     "opencode-plugin-cc": {
       "flake": false,
       "locked": {
-        "lastModified": 1788760805,
-        "narHash": "sha256-0IGnnL/+ikpiLWEru7RoHBseLhHG3T3Vw87HNTert5I=",
+        "lastModified": 1788763655,
+        "narHash": "sha256-znPPJ5DG1xfeHNNXU1PXNHLWFI5tgcEBG3npSuNZ+Lg=",
         "owner": "bhaswata08",
         "repo": "opencode-plugin-cc",
-        "rev": "5987e29c36d19031f502f9cd4cadd54df51ba6b5",
+        "rev": "fa99316ae9db2dcde2d3a51a6c25546f891cdbee",
         "type": "github"
       },
       "original": {
