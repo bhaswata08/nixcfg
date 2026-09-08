@@ -30,6 +30,12 @@
     BROWSER = "${
       inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
     }/bin/zen";
+    # Where the opencode companion keeps its job records. Without this it walks
+    # a fallback chain and lands in /tmp/opencode-companion, so every dispatched
+    # job, its trace log and its result are lost on reboot. The plugin appends
+    # "state" to this path. Kept outside ~/.claude/plugins so a plugin version
+    # bump, which changes the cache directory, does not orphan the history.
+    OPENCODE_COMPANION_DATA = "/home/bhaswata/.local/share/opencode-companion";
   };
 
 }
