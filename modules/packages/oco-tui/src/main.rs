@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, IsTerminal, Read, Seek, SeekFrom, Stdout};
 use std::path::{Path, PathBuf};
@@ -18,6 +19,9 @@ use ratatui::{
     Frame, Terminal,
 };
 use serde::Deserialize;
+
+pub const MAX_STATE_FILE_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
+pub const COMPANION_DIR: &str = "/tmp/opencode-companion";
 
 fn resolve_companion_path() -> Result<PathBuf, String> {
     let raw = match std::env::var("OCO_COMPANION") {
@@ -105,6 +109,28 @@ pub struct RawJobRequest {
 struct JobResultData {
     #[serde(default)]
     rendered: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CompanionState {
+    pub workspace_path: Option<String>,
+    #[serde(default)]
+    pub jobs: Vec<RawJob>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkspaceInfo {
+    pub label: String,
+    pub path: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InputMode {
+    Normal,
+    Filter,
+    ConfirmCancel { job_id: String },
+    ConfirmClear { count: usize },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -209,6 +235,90 @@ impl JobItem {
             log_file: raw.log_file,
         }
     }
+}
+
+pub fn matches_filter(job: &JobItem, query: &str) -> bool {
+    let q = query.to_lowercase();
+    if q.is_empty() {
+        return true;
+    }
+    job.id.to_lowercase().contains(&q)
+        || job.status.to_lowercase().contains(&q)
+        || job.type_agent.to_lowercase().contains(&q)
+        || job.backend.to_lowercase().contains(&q)
+        || job.request_first_line.to_lowercase().contains(&q)
+}
+
+pub fn format_workspace_label(workspace_path: Option<&str>, dir_name: &str) -> String {
+    if let Some(path_str) = workspace_path {
+        let trimmed = path_str.trim().trim_end_matches('/');
+        if !trimmed.is_empty() {
+            let segments: Vec<&str> = trimmed.split('/').filter(|s| !s.is_empty()).collect();
+            if !segments.is_empty() {
+                let start = segments.len().saturating_sub(2);
+                return segments[start..].join("/");
+            }
+        }
+    }
+    dir_name.to_string()
+}
+
+pub fn load_all_workspace_jobs_from_dir(
+    dir: &Path,
+) -> io::Result<(Vec<JobItem>, HashMap<String, WorkspaceInfo>)> {
+    let mut all_jobs = Vec::new();
+    let mut workspaces = HashMap::new();
+
+    if !dir.exists() || !dir.is_dir() {
+        return Ok((all_jobs, workspaces));
+    }
+
+    let entries = std::fs::read_dir(dir)?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+
+        let dir_name = entry.file_name().to_string_lossy().to_string();
+        let state_path = path.join("state.json");
+        if !state_path.exists() {
+            continue;
+        }
+
+        if let Ok(metadata) = std::fs::metadata(&state_path) {
+            if metadata.len() > MAX_STATE_FILE_BYTES {
+                continue;
+            }
+        } else {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(&state_path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let state: CompanionState = match serde_json::from_str(&content) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+
+        let ws_label = format_workspace_label(state.workspace_path.as_deref(), &dir_name);
+        let ws_info = WorkspaceInfo {
+            label: ws_label,
+            path: state.workspace_path,
+        };
+
+        for raw in state.jobs {
+            let item = JobItem::from_raw(raw);
+            workspaces.insert(item.id.clone(), ws_info.clone());
+            all_jobs.push(item);
+        }
+    }
+
+    sort_jobs_newest_first(&mut all_jobs);
+    Ok((all_jobs, workspaces))
 }
 
 fn format_duration_ms(ms: u64) -> String {
@@ -700,12 +810,18 @@ pub struct App {
     pub detail_total_lines: usize,
     pub detail_cache: Option<DetailCache>,
     pub last_selected_job_id: Option<String>,
+
+    pub all_jobs: Vec<JobItem>,
+    pub filter_query: String,
+    pub input_mode: InputMode,
+    pub all_workspaces: bool,
+    pub job_workspaces: HashMap<String, WorkspaceInfo>,
 }
 
-impl App {
-    pub fn new(companion_path: PathBuf) -> Self {
-        let mut app = Self {
-            companion_path,
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            companion_path: PathBuf::new(),
             workspace_root: ".".to_string(),
             jobs: Vec::new(),
             running_count: 0,
@@ -721,6 +837,20 @@ impl App {
             detail_total_lines: 0,
             detail_cache: None,
             last_selected_job_id: None,
+            all_jobs: Vec::new(),
+            filter_query: String::new(),
+            input_mode: InputMode::Normal,
+            all_workspaces: false,
+            job_workspaces: HashMap::new(),
+        }
+    }
+}
+
+impl App {
+    pub fn new(companion_path: PathBuf) -> Self {
+        let mut app = Self {
+            companion_path,
+            ..Default::default()
         };
         app.refresh();
         app
@@ -794,53 +924,217 @@ impl App {
         };
     }
 
-    pub fn refresh(&mut self) {
-        match fetch_status(&self.companion_path) {
-            Ok(data) => {
-                if let Some(ws) = data.workspace_root {
-                    self.workspace_root = ws;
-                }
+    pub fn apply_filter(&mut self) {
+        let prev_selected_id = self.selected_job().map(|j| j.id.clone());
 
-                let mut running: Vec<JobItem> =
-                    data.running.into_iter().map(JobItem::from_raw).collect();
-                sort_jobs_newest_first(&mut running);
+        if self.filter_query.is_empty() {
+            self.jobs = self.all_jobs.clone();
+        } else {
+            self.jobs = self
+                .all_jobs
+                .iter()
+                .filter(|job| matches_filter(job, &self.filter_query))
+                .cloned()
+                .collect();
+        }
 
-                let mut recent_raw = Vec::new();
-                if let Some(lf) = data.latest_finished {
-                    recent_raw.push(lf);
-                }
-                recent_raw.extend(data.recent);
-
-                let mut recent: Vec<JobItem> = Vec::new();
-                for r in recent_raw {
-                    if !running.iter().any(|j| j.id == r.id) && !recent.iter().any(|j| j.id == r.id)
-                    {
-                        recent.push(JobItem::from_raw(r));
-                    }
-                }
-                sort_jobs_newest_first(&mut recent);
-
-                self.running_count = running.len();
-                self.recent_count = recent.len();
-
-                let mut combined = running;
-                combined.extend(recent);
-                self.jobs = combined;
-                self.last_error = None;
-
-                if self.jobs.is_empty() {
-                    self.table_state.select(None);
-                } else {
-                    let current = self.table_state.selected().unwrap_or(0);
-                    self.table_state
-                        .select(Some(current.min(self.jobs.len() - 1)));
-                }
-                self.check_selection_changed();
+        if self.jobs.is_empty() {
+            self.table_state.select(None);
+        } else if let Some(prev_id) = prev_selected_id {
+            if let Some(pos) = self.jobs.iter().position(|j| j.id == prev_id) {
+                self.table_state.select(Some(pos));
+            } else {
+                self.table_state.select(Some(0));
             }
-            Err(err) => {
-                self.last_error = Some(err);
+        } else {
+            self.table_state.select(Some(0));
+        }
+        self.check_selection_changed();
+    }
+
+    pub fn refresh(&mut self) {
+        if self.all_workspaces {
+            match load_all_workspace_jobs_from_dir(Path::new(COMPANION_DIR)) {
+                Ok((loaded_jobs, loaded_ws)) => {
+                    self.job_workspaces = loaded_ws;
+                    self.running_count = loaded_jobs
+                        .iter()
+                        .filter(|j| j.status_category == StatusCategory::Active)
+                        .count();
+                    self.recent_count = loaded_jobs.len().saturating_sub(self.running_count);
+                    self.all_jobs = loaded_jobs;
+                    self.last_error = None;
+                    self.apply_filter();
+                }
+                Err(err) => {
+                    self.last_error = Some(format!("failed to load workspaces: {err}"));
+                }
+            }
+        } else {
+            match fetch_status(&self.companion_path) {
+                Ok(data) => {
+                    if let Some(ws) = data.workspace_root {
+                        self.workspace_root = ws;
+                    }
+
+                    let mut running: Vec<JobItem> =
+                        data.running.into_iter().map(JobItem::from_raw).collect();
+                    sort_jobs_newest_first(&mut running);
+
+                    let mut recent_raw = Vec::new();
+                    if let Some(lf) = data.latest_finished {
+                        recent_raw.push(lf);
+                    }
+                    recent_raw.extend(data.recent);
+
+                    let mut recent: Vec<JobItem> = Vec::new();
+                    for r in recent_raw {
+                        if !running.iter().any(|j| j.id == r.id)
+                            && !recent.iter().any(|j| j.id == r.id)
+                        {
+                            recent.push(JobItem::from_raw(r));
+                        }
+                    }
+                    sort_jobs_newest_first(&mut recent);
+
+                    self.running_count = running.len();
+                    self.recent_count = recent.len();
+
+                    let mut combined = running;
+                    combined.extend(recent);
+                    self.all_jobs = combined;
+                    self.last_error = None;
+                    self.apply_filter();
+                }
+                Err(err) => {
+                    self.last_error = Some(err);
+                }
             }
         }
+    }
+
+    pub fn request_cancel_selected(&mut self) {
+        let job = match self.selected_job() {
+            Some(j) => j.clone(),
+            None => return,
+        };
+
+        if self.all_workspaces {
+            if let Some(info) = self.job_workspaces.get(&job.id) {
+                let is_current = match &info.path {
+                    Some(p) => p == &self.workspace_root,
+                    None => false,
+                };
+                if !is_current {
+                    self.last_error = Some(format!(
+                        "Cannot cancel: job belongs to another workspace ({})",
+                        info.label
+                    ));
+                    return;
+                }
+            }
+        }
+
+        if job.status_category != StatusCategory::Active {
+            self.last_error = Some(format!("Job {} is not active ({})", job.id, job.status));
+            return;
+        }
+
+        self.input_mode = InputMode::ConfirmCancel { job_id: job.id };
+    }
+
+    pub fn execute_cancel(&mut self, job_id: &str) {
+        let output = Command::new("node")
+            .arg(&self.companion_path)
+            .arg("cancel")
+            .arg(job_id)
+            .output();
+        match output {
+            Ok(out) => {
+                if !out.status.success() {
+                    let stderr = String::from_utf8_lossy(&out.stderr);
+                    self.last_error = Some(format!("cancel failed: {}", stderr.trim()));
+                } else {
+                    self.last_error = None;
+                }
+            }
+            Err(e) => {
+                self.last_error = Some(format!("failed to execute node: {e}"));
+            }
+        }
+        self.refresh();
+    }
+
+    pub fn request_clear(&mut self) {
+        if self.all_workspaces {
+            self.last_error = Some(
+                "Cannot clear in all-workspace view (press 'a' to switch to single workspace)"
+                    .to_string(),
+            );
+            return;
+        }
+
+        let output = Command::new("node")
+            .arg(&self.companion_path)
+            .arg("clear")
+            .arg("--dry-run")
+            .arg("--json")
+            .output();
+
+        let output = match output {
+            Ok(o) => o,
+            Err(e) => {
+                self.last_error = Some(format!("failed to execute node: {e}"));
+                return;
+            }
+        };
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            self.last_error = Some(format!("clear dry-run failed: {}", stderr.trim()));
+            return;
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        #[derive(Deserialize)]
+        struct ClearResult {
+            #[serde(default)]
+            cleared: Vec<String>,
+        }
+
+        match serde_json::from_str::<ClearResult>(&stdout) {
+            Ok(res) => {
+                self.input_mode = InputMode::ConfirmClear {
+                    count: res.cleared.len(),
+                };
+            }
+            Err(e) => {
+                self.last_error = Some(format!("invalid clear json: {e}"));
+            }
+        }
+    }
+
+    pub fn execute_clear(&mut self) {
+        let output = Command::new("node")
+            .arg(&self.companion_path)
+            .arg("clear")
+            .arg("--json")
+            .output();
+
+        match output {
+            Ok(out) => {
+                if !out.status.success() {
+                    let stderr = String::from_utf8_lossy(&out.stderr);
+                    self.last_error = Some(format!("clear failed: {}", stderr.trim()));
+                } else {
+                    self.last_error = None;
+                }
+            }
+            Err(e) => {
+                self.last_error = Some(format!("failed to execute node: {e}"));
+            }
+        }
+        self.refresh();
     }
 
     pub fn move_down(&mut self, amount: usize) {
@@ -954,12 +1248,20 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
         return;
     }
 
+    let footer_height = if app.input_mode != InputMode::Normal {
+        1
+    } else if area.height >= 12 {
+        2
+    } else {
+        1
+    };
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(3),
             Constraint::Min(1),
-            Constraint::Length(1),
+            Constraint::Length(footer_height),
         ])
         .split(area);
 
@@ -980,25 +1282,62 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
     // Compute visible rows for half-page scrolling (excluding headers and borders)
     app.visible_rows = table_area.height.saturating_sub(3) as usize;
 
-    let mut header_spans = vec![
-        Span::styled("Workspace: ", Style::default().add_modifier(Modifier::BOLD)),
-        Span::styled(&app.workspace_root, Style::default().fg(Color::Cyan)),
-        Span::raw("  |  "),
-        Span::styled(
-            format!("{} running", app.running_count),
+    let mut header_spans = Vec::new();
+    if app.all_workspaces {
+        header_spans.push(Span::styled(
+            "Workspace: ",
+            Style::default().add_modifier(Modifier::BOLD),
+        ));
+        header_spans.push(Span::styled(
+            "ALL WORKSPACES",
+            Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD),
+        ));
+    } else {
+        header_spans.push(Span::styled(
+            "Workspace: ",
+            Style::default().add_modifier(Modifier::BOLD),
+        ));
+        header_spans.push(Span::styled(
+            &app.workspace_root,
+            Style::default().fg(Color::Cyan),
+        ));
+    }
+
+    header_spans.push(Span::raw("  |  "));
+    header_spans.push(Span::styled(
+        format!("{} running", app.running_count),
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    ));
+    header_spans.push(Span::raw(", "));
+    header_spans.push(Span::styled(
+        format!("{} recent", app.recent_count),
+        Style::default()
+            .fg(Color::Green)
+            .add_modifier(Modifier::BOLD),
+    ));
+    header_spans.push(Span::raw(format!(" ({} total)", app.all_jobs.len())));
+
+    if !app.filter_query.is_empty() {
+        header_spans.push(Span::raw("  |  "));
+        header_spans.push(Span::styled(
+            "Filter: ",
+            Style::default().add_modifier(Modifier::BOLD),
+        ));
+        header_spans.push(Span::styled(
+            format!("\"{}\"", app.filter_query),
+            Style::default().fg(Color::Yellow),
+        ));
+        header_spans.push(Span::styled(
+            format!(" ({}/{} matches)", app.jobs.len(), app.all_jobs.len()),
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(", "),
-        Span::styled(
-            format!("{} recent", app.recent_count),
-            Style::default()
-                .fg(Color::Green)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(format!(" ({} total)", app.jobs.len())),
-    ];
+        ));
+    }
 
     if let Some(err) = &app.last_error {
         header_spans.push(Span::raw("  |  "));
@@ -1027,49 +1366,89 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
             .border_type(BorderType::Rounded)
             .border_style(table_border_style)
             .title(" Jobs ");
-        let empty_text = Paragraph::new("No OpenCode jobs found for this workspace.")
+        let empty_message = if !app.filter_query.is_empty() {
+            format!("No jobs match filter \"{}\".", app.filter_query)
+        } else if app.all_workspaces {
+            "No OpenCode jobs found across workspaces.".to_string()
+        } else {
+            "No OpenCode jobs found for this workspace.".to_string()
+        };
+        let empty_text = Paragraph::new(empty_message)
             .block(empty_block)
             .alignment(Alignment::Center)
             .style(Style::default().fg(Color::DarkGray));
         frame.render_widget(empty_text, table_area);
     } else {
-        let widths = [
-            Constraint::Length(13),
-            Constraint::Length(20),
-            Constraint::Length(12),
-            Constraint::Length(9),
-            Constraint::Length(8),
-            Constraint::Min(10),
-        ];
-
-        let rows: Vec<Row> = app
-            .jobs
-            .iter()
-            .map(|job| {
-                let status_style = job.status_category.style();
-                Row::new(vec![
-                    Cell::from(job.status.as_str()).style(status_style),
-                    Cell::from(job.id.as_str()),
-                    Cell::from(job.type_agent.as_str()),
-                    Cell::from(job.backend.as_str()),
-                    Cell::from(job.elapsed.as_str()),
-                    Cell::from(job.request_first_line.as_str()),
-                ])
-            })
-            .collect();
-
-        let table = Table::new(rows, widths)
-            .header(
-                Row::new(vec![
+        let (widths, header_cells) = if app.all_workspaces {
+            (
+                vec![
+                    Constraint::Length(13),
+                    Constraint::Length(18),
+                    Constraint::Length(20),
+                    Constraint::Length(12),
+                    Constraint::Length(9),
+                    Constraint::Length(8),
+                    Constraint::Min(10),
+                ],
+                vec![
+                    "STATUS",
+                    "WORKSPACE",
+                    "ID",
+                    "TYPE/AGENT",
+                    "BACKEND",
+                    "ELAPSED",
+                    "REQUEST",
+                ],
+            )
+        } else {
+            (
+                vec![
+                    Constraint::Length(13),
+                    Constraint::Length(20),
+                    Constraint::Length(12),
+                    Constraint::Length(9),
+                    Constraint::Length(8),
+                    Constraint::Min(10),
+                ],
+                vec![
                     "STATUS",
                     "ID",
                     "TYPE/AGENT",
                     "BACKEND",
                     "ELAPSED",
                     "REQUEST",
-                ])
-                .style(Style::default().add_modifier(Modifier::BOLD))
-                .bottom_margin(1),
+                ],
+            )
+        };
+
+        let rows: Vec<Row> = app
+            .jobs
+            .iter()
+            .map(|job| {
+                let status_style = job.status_category.style();
+                let mut cells = vec![Cell::from(job.status.as_str()).style(status_style)];
+                if app.all_workspaces {
+                    let ws_label = app
+                        .job_workspaces
+                        .get(&job.id)
+                        .map(|w| w.label.as_str())
+                        .unwrap_or("-");
+                    cells.push(Cell::from(ws_label));
+                }
+                cells.push(Cell::from(job.id.as_str()));
+                cells.push(Cell::from(job.type_agent.as_str()));
+                cells.push(Cell::from(job.backend.as_str()));
+                cells.push(Cell::from(job.elapsed.as_str()));
+                cells.push(Cell::from(job.request_first_line.as_str()));
+                Row::new(cells)
+            })
+            .collect();
+
+        let table = Table::new(rows, widths)
+            .header(
+                Row::new(header_cells)
+                    .style(Style::default().add_modifier(Modifier::BOLD))
+                    .bottom_margin(1),
             )
             .block(
                 Block::default()
@@ -1182,53 +1561,154 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
         frame.render_widget(detail_paragraph, d_area);
     }
 
-    let footer_spans = vec![
-        Span::styled(
-            " Tab",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(": focus  "),
-        Span::styled(
-            "j/k",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(": nav/scroll  "),
-        Span::styled(
-            "g/G",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(": top/bottom  "),
-        Span::styled(
-            "^d/^u",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(": half-page  "),
-        Span::styled(
-            "r",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(": refresh  "),
-        Span::styled(
-            "q",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(": quit"),
-    ];
-    let footer_paragraph = Paragraph::new(Line::from(footer_spans))
-        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
-    frame.render_widget(footer_paragraph, footer_area);
+    match &app.input_mode {
+        InputMode::Filter => {
+            let filter_spans = vec![
+                Span::styled(
+                    " / ",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    &app.filter_query,
+                    Style::default()
+                        .fg(Color::White)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled("█", Style::default().fg(Color::Yellow)),
+                Span::raw("  "),
+                Span::styled(
+                    "(Enter: apply, Esc: cancel)",
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ];
+            let filter_paragraph =
+                Paragraph::new(Line::from(filter_spans)).style(Style::default().bg(Color::Black));
+            frame.render_widget(filter_paragraph, footer_area);
+        }
+        InputMode::ConfirmCancel { job_id } => {
+            let prompt_spans = vec![
+                Span::styled(
+                    " Cancel job ",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    job_id.as_str(),
+                    Style::default()
+                        .fg(Color::White)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    "? [y to confirm, any other key to abort] ",
+                    Style::default().fg(Color::Yellow),
+                ),
+            ];
+            let prompt_paragraph =
+                Paragraph::new(Line::from(prompt_spans)).style(Style::default().bg(Color::Black));
+            frame.render_widget(prompt_paragraph, footer_area);
+        }
+        InputMode::ConfirmClear { count } => {
+            let prompt_spans = vec![
+                Span::styled(
+                    format!(" Clear {count} finished job(s)? "),
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    "[y to confirm, any other key to abort] ",
+                    Style::default().fg(Color::Yellow),
+                ),
+            ];
+            let prompt_paragraph =
+                Paragraph::new(Line::from(prompt_spans)).style(Style::default().bg(Color::Black));
+            frame.render_widget(prompt_paragraph, footer_area);
+        }
+        InputMode::Normal => {
+            let line1 = Line::from(vec![
+                Span::styled(
+                    " Tab",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(": focus  "),
+                Span::styled(
+                    "j/k",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(": nav/scroll  "),
+                Span::styled(
+                    "g/G",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(": top/bottom  "),
+                Span::styled(
+                    "^d/^u",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(": half-page  "),
+                Span::styled(
+                    "r",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(": refresh  "),
+                Span::styled(
+                    "q",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(": quit"),
+            ]);
+
+            let line2 = Line::from(vec![
+                Span::styled(
+                    " /",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(": filter  "),
+                Span::styled(
+                    "c",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(": cancel  "),
+                Span::styled(
+                    "X",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(": clear  "),
+                Span::styled(
+                    "a",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(": toggle all ws"),
+            ]);
+
+            let footer_paragraph = if footer_height >= 2 {
+                Paragraph::new(vec![line1, line2])
+                    .style(Style::default().bg(Color::DarkGray).fg(Color::White))
+            } else {
+                Paragraph::new(line1).style(Style::default().bg(Color::DarkGray).fg(Color::White))
+            };
+            frame.render_widget(footer_paragraph, footer_area);
+        }
+    }
 }
 
 fn run_app(
@@ -1247,61 +1727,122 @@ fn run_app(
         if event::poll(poll_timeout)? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Char('q') => break,
-                        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                            break
-                        }
-                        KeyCode::Tab => {
-                            app.toggle_focus();
-                        }
-                        KeyCode::Char('j') | KeyCode::Down => {
-                            if app.focused_pane == FocusedPane::Table {
-                                app.move_down(1);
-                            } else {
-                                app.scroll_detail_down(1);
+                    match app.input_mode {
+                        InputMode::Filter => match key.code {
+                            KeyCode::Enter | KeyCode::Char('\n') | KeyCode::Char('\r') => {
+                                app.input_mode = InputMode::Normal;
+                                app.focused_pane = FocusedPane::Table;
+                            }
+                            KeyCode::Char('j') | KeyCode::Char('m')
+                                if key.modifiers.contains(KeyModifiers::CONTROL) =>
+                            {
+                                app.input_mode = InputMode::Normal;
+                                app.focused_pane = FocusedPane::Table;
+                            }
+                            KeyCode::Esc | KeyCode::Char('[')
+                                if key.modifiers.contains(KeyModifiers::CONTROL) =>
+                            {
+                                app.filter_query.clear();
+                                app.apply_filter();
+                                app.input_mode = InputMode::Normal;
+                            }
+                            KeyCode::Backspace => {
+                                app.filter_query.pop();
+                                app.apply_filter();
+                            }
+                            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                app.filter_query.clear();
+                                app.apply_filter();
+                                app.input_mode = InputMode::Normal;
+                            }
+                            KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                app.filter_query.push(c);
+                                app.apply_filter();
+                            }
+                            _ => {}
+                        },
+                        InputMode::ConfirmCancel { ref job_id } => {
+                            let id = job_id.clone();
+                            app.input_mode = InputMode::Normal;
+                            if key.code == KeyCode::Char('y') || key.code == KeyCode::Char('Y') {
+                                app.execute_cancel(&id);
                             }
                         }
-                        KeyCode::Char('k') | KeyCode::Up => {
-                            if app.focused_pane == FocusedPane::Table {
-                                app.move_up(1);
-                            } else {
-                                app.scroll_detail_up(1);
+                        InputMode::ConfirmClear { .. } => {
+                            app.input_mode = InputMode::Normal;
+                            if key.code == KeyCode::Char('y') || key.code == KeyCode::Char('Y') {
+                                app.execute_clear();
                             }
                         }
-                        KeyCode::Char('g') => {
-                            if app.focused_pane == FocusedPane::Table {
-                                app.select_first();
-                            } else {
-                                app.scroll_detail_top();
+                        InputMode::Normal => match key.code {
+                            KeyCode::Char('q') => break,
+                            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                break;
                             }
-                        }
-                        KeyCode::Char('G') => {
-                            if app.focused_pane == FocusedPane::Table {
-                                app.select_last();
-                            } else {
-                                app.scroll_detail_bottom();
+                            KeyCode::Char('/') => {
+                                app.input_mode = InputMode::Filter;
                             }
-                        }
-                        KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                            if app.focused_pane == FocusedPane::Table {
-                                app.half_page_down();
-                            } else {
-                                app.scroll_detail_half_page_down();
+                            KeyCode::Char('c') => {
+                                app.request_cancel_selected();
                             }
-                        }
-                        KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                            if app.focused_pane == FocusedPane::Table {
-                                app.half_page_up();
-                            } else {
-                                app.scroll_detail_half_page_up();
+                            KeyCode::Char('X') => {
+                                app.request_clear();
                             }
-                        }
-                        KeyCode::Char('r') => {
-                            app.refresh();
-                            last_refresh = Instant::now();
-                        }
-                        _ => {}
+                            KeyCode::Char('a') => {
+                                app.all_workspaces = !app.all_workspaces;
+                                app.refresh();
+                            }
+                            KeyCode::Tab => {
+                                app.toggle_focus();
+                            }
+                            KeyCode::Char('j') | KeyCode::Down => {
+                                if app.focused_pane == FocusedPane::Table {
+                                    app.move_down(1);
+                                } else {
+                                    app.scroll_detail_down(1);
+                                }
+                            }
+                            KeyCode::Char('k') | KeyCode::Up => {
+                                if app.focused_pane == FocusedPane::Table {
+                                    app.move_up(1);
+                                } else {
+                                    app.scroll_detail_up(1);
+                                }
+                            }
+                            KeyCode::Char('g') => {
+                                if app.focused_pane == FocusedPane::Table {
+                                    app.select_first();
+                                } else {
+                                    app.scroll_detail_top();
+                                }
+                            }
+                            KeyCode::Char('G') => {
+                                if app.focused_pane == FocusedPane::Table {
+                                    app.select_last();
+                                } else {
+                                    app.scroll_detail_bottom();
+                                }
+                            }
+                            KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                if app.focused_pane == FocusedPane::Table {
+                                    app.half_page_down();
+                                } else {
+                                    app.scroll_detail_half_page_down();
+                                }
+                            }
+                            KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                if app.focused_pane == FocusedPane::Table {
+                                    app.half_page_up();
+                                } else {
+                                    app.scroll_detail_half_page_up();
+                                }
+                            }
+                            KeyCode::Char('r') => {
+                                app.refresh();
+                                last_refresh = Instant::now();
+                            }
+                            _ => {}
+                        },
                     }
                 }
             }
@@ -1491,6 +2032,11 @@ mod tests {
                 detail_total_lines: 0,
                 detail_cache: None,
                 last_selected_job_id: None,
+                all_jobs: Vec::new(),
+                filter_query: String::new(),
+                input_mode: InputMode::Normal,
+                all_workspaces: false,
+                job_workspaces: HashMap::new(),
             };
             terminal.draw(|f| render_ui(f, &mut app)).unwrap();
         }
@@ -1705,6 +2251,11 @@ mod tests {
             detail_total_lines: 0,
             detail_cache: None,
             last_selected_job_id: Some("task-test-1".to_string()),
+            all_jobs: vec![sample_job.clone()],
+            filter_query: String::new(),
+            input_mode: InputMode::Normal,
+            all_workspaces: false,
+            job_workspaces: HashMap::new(),
         };
         terminal.draw(|f| render_ui(f, &mut app)).unwrap();
 
@@ -1728,6 +2279,11 @@ mod tests {
             detail_total_lines: 0,
             detail_cache: None,
             last_selected_job_id: None,
+            all_jobs: Vec::new(),
+            filter_query: String::new(),
+            input_mode: InputMode::Normal,
+            all_workspaces: false,
+            job_workspaces: HashMap::new(),
         };
         terminal.draw(|f| render_ui(f, &mut app_no_jobs)).unwrap();
 
@@ -1737,7 +2293,7 @@ mod tests {
         let mut app_small = App {
             companion_path: PathBuf::from("/tmp"),
             workspace_root: "/test".to_string(),
-            jobs: vec![sample_job],
+            jobs: vec![sample_job.clone()],
             running_count: 1,
             recent_count: 0,
             table_state: {
@@ -1755,7 +2311,265 @@ mod tests {
             detail_total_lines: 0,
             detail_cache: None,
             last_selected_job_id: Some("task-test-1".to_string()),
+            all_jobs: vec![sample_job],
+            filter_query: String::new(),
+            input_mode: InputMode::Normal,
+            all_workspaces: false,
+            job_workspaces: HashMap::new(),
         };
         terminal.draw(|f| render_ui(f, &mut app_small)).unwrap();
+    }
+
+    #[test]
+    fn test_filter_matches_five_fields_case_insensitively() {
+        let job = JobItem {
+            id: "task-abc-123".to_string(),
+            status: "running".to_string(),
+            status_category: StatusCategory::Active,
+            type_agent: "task/coder".to_string(),
+            backend: "agy".to_string(),
+            elapsed: "5m".to_string(),
+            request_first_line: "Implement filter feature".to_string(),
+            updated_at: None,
+            created_at: None,
+            log_file: None,
+        };
+
+        // 1. Job ID (case-insensitive substring)
+        assert!(matches_filter(&job, "abc"));
+        assert!(matches_filter(&job, "ABC"));
+        assert!(matches_filter(&job, "123"));
+
+        // 2. Status
+        assert!(matches_filter(&job, "run"));
+        assert!(matches_filter(&job, "RUNNING"));
+
+        // 3. Type / Agent
+        assert!(matches_filter(&job, "TASK"));
+        assert!(matches_filter(&job, "coder"));
+        assert!(matches_filter(&job, "CODER"));
+
+        // 4. Backend
+        assert!(matches_filter(&job, "agy"));
+        assert!(matches_filter(&job, "AGY"));
+
+        // 5. Request text
+        assert!(matches_filter(&job, "implement"));
+        assert!(matches_filter(&job, "FILTER"));
+        assert!(matches_filter(&job, "feature"));
+
+        // Non-match
+        assert!(!matches_filter(&job, "nonexistent"));
+    }
+
+    #[test]
+    fn test_filter_empty_query_means_no_filter() {
+        let job = JobItem {
+            id: "task-test".to_string(),
+            status: "completed".to_string(),
+            status_category: StatusCategory::Completed,
+            type_agent: "review".to_string(),
+            backend: "opencode".to_string(),
+            elapsed: "12s".to_string(),
+            request_first_line: "do a review".to_string(),
+            updated_at: None,
+            created_at: None,
+            log_file: None,
+        };
+
+        assert!(matches_filter(&job, ""));
+
+        let mut app = App {
+            jobs: vec![job.clone()],
+            all_jobs: vec![job],
+            filter_query: String::new(),
+            ..Default::default()
+        };
+        app.apply_filter();
+        assert_eq!(app.jobs.len(), 1);
+    }
+
+    #[test]
+    fn test_filter_selection_survival() {
+        let job1 = JobItem {
+            id: "task-apple".to_string(),
+            status: "running".to_string(),
+            status_category: StatusCategory::Active,
+            type_agent: "task/coder".to_string(),
+            backend: "agy".to_string(),
+            elapsed: "1s".to_string(),
+            request_first_line: "apple task".to_string(),
+            updated_at: None,
+            created_at: None,
+            log_file: None,
+        };
+        let job2 = JobItem {
+            id: "task-banana".to_string(),
+            status: "running".to_string(),
+            status_category: StatusCategory::Active,
+            type_agent: "task/coder".to_string(),
+            backend: "agy".to_string(),
+            elapsed: "2s".to_string(),
+            request_first_line: "banana task".to_string(),
+            updated_at: None,
+            created_at: None,
+            log_file: None,
+        };
+
+        let mut app = App {
+            jobs: vec![job1.clone(), job2.clone()],
+            all_jobs: vec![job1, job2],
+            ..Default::default()
+        };
+        app.table_state.select(Some(1)); // select task-banana
+
+        // 1. Selected job still matches: keep selected
+        app.filter_query = "banana".to_string();
+        app.apply_filter();
+        assert_eq!(app.jobs.len(), 1);
+        assert_eq!(app.selected_job().unwrap().id, "task-banana");
+
+        // 2. Selected job stops matching: select first match
+        app.filter_query = "apple".to_string();
+        app.apply_filter();
+        assert_eq!(app.jobs.len(), 1);
+        assert_eq!(app.table_state.selected(), Some(0));
+        assert_eq!(app.selected_job().unwrap().id, "task-apple");
+
+        // 3. Nothing matches: select nothing
+        app.filter_query = "orange".to_string();
+        app.apply_filter();
+        assert_eq!(app.jobs.len(), 0);
+        assert_eq!(app.table_state.selected(), None);
+        assert!(app.selected_job().is_none());
+    }
+
+    #[test]
+    fn test_cancel_refused_on_terminal_status() {
+        for terminal_status in &["completed", "failed", "cancelled", "canceled"] {
+            let job = JobItem {
+                id: "task-done".to_string(),
+                status: terminal_status.to_string(),
+                status_category: StatusCategory::from_status(terminal_status),
+                type_agent: "task/coder".to_string(),
+                backend: "agy".to_string(),
+                elapsed: "10s".to_string(),
+                request_first_line: "terminal job".to_string(),
+                updated_at: None,
+                created_at: None,
+                log_file: None,
+            };
+
+            let mut app = App {
+                jobs: vec![job],
+                input_mode: InputMode::Normal,
+                ..Default::default()
+            };
+            app.table_state.select(Some(0));
+
+            app.request_cancel_selected();
+            assert_eq!(app.input_mode, InputMode::Normal);
+            assert!(app.last_error.is_some());
+            let err = app.last_error.as_ref().unwrap();
+            assert!(err.contains("not active"));
+        }
+    }
+
+    #[test]
+    fn test_workspace_label_with_and_without_path() {
+        // State file with workspace path
+        let label_with_path =
+            format_workspace_label(Some("/home/bhaswata/dotfiles/nixcfg"), "953eef822d9ac6d2");
+        assert_eq!(label_with_path, "dotfiles/nixcfg");
+
+        // Single segment path
+        let label_single_segment = format_workspace_label(Some("/nixcfg"), "953eef822d9ac6d2");
+        assert_eq!(label_single_segment, "nixcfg");
+
+        // State file without workspace path
+        let label_without_path = format_workspace_label(None, "ea77e5fb0e6c5447");
+        assert_eq!(label_without_path, "ea77e5fb0e6c5447");
+
+        // State file with empty workspace path
+        let label_empty_path = format_workspace_label(Some(""), "ea77e5fb0e6c5447");
+        assert_eq!(label_empty_path, "ea77e5fb0e6c5447");
+    }
+
+    #[test]
+    fn test_malformed_state_file_skipped() {
+        let temp_dir = std::env::temp_dir().join(format!("oco-tui-test-{}", std::process::id()));
+        let dir1 = temp_dir.join("workspace1");
+        let dir2 = temp_dir.join("workspace2");
+        std::fs::create_dir_all(&dir1).unwrap();
+        std::fs::create_dir_all(&dir2).unwrap();
+
+        // Malformed state file in dir1
+        std::fs::write(dir1.join("state.json"), b"{ invalid json content !!!").unwrap();
+
+        // Valid state file in dir2
+        let valid_json = r#"{
+            "workspacePath": "/home/user/project",
+            "jobs": [
+                {
+                    "id": "task-valid-1",
+                    "type": "task",
+                    "status": "running"
+                }
+            ]
+        }"#;
+        std::fs::write(dir2.join("state.json"), valid_json).unwrap();
+
+        let (jobs, workspaces) = load_all_workspace_jobs_from_dir(&temp_dir).unwrap();
+        // Malformed file was skipped, valid file was loaded
+        assert_eq!(jobs.len(), 1);
+        assert_eq!(jobs[0].id, "task-valid-1");
+        assert_eq!(
+            workspaces.get("task-valid-1").unwrap().label,
+            "user/project"
+        );
+
+        // Clean up
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_render_ui_filter_confirm_all_workspaces_small_terminal() {
+        use ratatui::backend::TestBackend;
+
+        for &(w, h) in &[(10, 3), (15, 5), (30, 10), (80, 24)] {
+            let backend = TestBackend::new(w, h);
+            let mut terminal = Terminal::new(backend).unwrap();
+
+            // 1. Filter-input mode
+            let mut app = App {
+                input_mode: InputMode::Filter,
+                filter_query: "test".to_string(),
+                ..Default::default()
+            };
+            terminal.draw(|f| render_ui(f, &mut app)).unwrap();
+
+            // 2. Confirmation prompt (Cancel)
+            let mut app = App {
+                input_mode: InputMode::ConfirmCancel {
+                    job_id: "task-123".to_string(),
+                },
+                ..Default::default()
+            };
+            terminal.draw(|f| render_ui(f, &mut app)).unwrap();
+
+            // 3. Confirmation prompt (Clear)
+            let mut app = App {
+                input_mode: InputMode::ConfirmClear { count: 4 },
+                ..Default::default()
+            };
+            terminal.draw(|f| render_ui(f, &mut app)).unwrap();
+
+            // 4. All-workspace mode
+            let mut app = App {
+                all_workspaces: true,
+                ..Default::default()
+            };
+            terminal.draw(|f| render_ui(f, &mut app)).unwrap();
+        }
     }
 }
