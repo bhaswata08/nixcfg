@@ -50,6 +50,21 @@ That happens inside the plugin, so you do not arrange it. The exception is
 start, so a job that fails with a `handoff` marker is asking you to run that
 review yourself.
 
+Two transports run those seats. `opencode` is the default and spends opencode's
+free contributor tier. `agy` drives the antigravity CLI on the Google account the
+Jio subscription pays for. Pass `--backend agy` in the rescue prompt to pick it,
+and the wrapper forwards the flag to `task`. Leaving it off keeps the default.
+`task` accepts `--agent`, `--backend`, `--background`, `--fresh`, `--model`,
+`--resume-last`, `--task-file`, `--wait`, `--write`, and rejects anything else.
+
+Reach for `--backend agy` when opencode answers `rate_limit_exceeded`, which the
+contributor tier does under load. The two backends draw separate quotas, so one
+being spent says nothing about the other. agy's quota is per Google account with
+a weekly and a five-hour window, and the five-hour one binds first. Its Gemini
+models and its Claude and GPT models sit in separate buckets, so the seat default
+of `gemini-3.8-flash-high` can have room while the Claude group reads 0%. Check
+the quota panel in the agy TUI before leaning on it.
+
 Routing:
 
 - Send `coder` anything that needs to understand the repo: reproducing a bug,
