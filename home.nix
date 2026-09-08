@@ -11,6 +11,7 @@
     ./configs/antigravity.nix
     ./configs/opencode.nix
     ./configs/claude.nix
+    ./configs/no-mistakes.nix
     ./configs/nushell.nix
     ./configs/nvim.nix
     ./configs/obsidian.nix

@@ -1,4 +1,5 @@
 {
+  config,
   inputs,
   lib,
   pkgs,
@@ -9,6 +10,16 @@ let
   opencodePluginSrc = inputs.opencode-plugin-cc;
   pluginJson = builtins.fromJSON (builtins.readFile "${opencodePluginSrc}/plugins/opencode/.claude-plugin/plugin.json");
   pluginVersion = pluginJson.version;
+
+  claudeSessionIndexPkg = pkgs.runCommand "claude-session-index" {
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+  } ''
+    mkdir -p $out/bin $out/lib/claude-session-index
+    cp -r ${./claude/session-index}/* $out/lib/claude-session-index/
+    rm -rf $out/lib/claude-session-index/__pycache__
+    makeWrapper ${pkgs.python3}/bin/python3 $out/bin/claude-session-index \
+      --add-flags "$out/lib/claude-session-index/cli.py"
+  '';
 in
 {
   # ~/.claude is not an XDG directory, so this uses home.file rather than the
@@ -41,11 +52,10 @@ in
   };
 
   # Second Claude account. `ccp` (configs/nushell/aliases.nu) points
-  # CLAUDE_CONFIG_DIR here, which gives that account its own credentials and
-  # sessions while sharing the instructions and skills below. soul.md is not
-  # mirrored: AGENTS.md imports it as @~/.claude/soul.md, an absolute path both
-  # profiles read. settings.json is left out on purpose: the plugin registry
-  # script rewrites it in place, and the second profile does not need the plugin.
+  # CLAUDE_CONFIG_DIR here, which gives that account its own credentials while
+  # sharing everything else with ~/.claude (see claudePersonalShared below).
+  # soul.md is not mirrored: AGENTS.md imports it as @~/.claude/soul.md, an
+  # absolute path both profiles read.
   home.file.".claude-personal/CLAUDE.md".source = ./claude/AGENTS.md;
   home.file.".claude-personal/skills" = {
     source = ./claude/skills;
@@ -61,6 +71,10 @@ in
   home.file.".claude/plugins/marketplaces/tasict-opencode-plugin-cc".source = opencodePluginSrc;
   home.file.".claude/plugins/cache/tasict-opencode-plugin-cc/opencode/${pluginVersion}".source = "${opencodePluginSrc}/plugins/opencode";
   home.file.".claude/plugins/cache/tasict-opencode-plugin-cc/opencode/current".source = "${opencodePluginSrc}/plugins/opencode";
+
+  home.packages = [
+    claudeSessionIndexPkg
+  ];
 
   home.activation.claudeOpencodePlugin = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     PLUGINS_DIR="$HOME/.claude/plugins"
@@ -116,20 +130,47 @@ in
         json.dump(inst, f, indent=2)
         f.write('\n')
 
-    # 3. Ensure enabled in settings.json
-    settings_path = os.path.expanduser('~/.claude/settings.json')
-    if os.path.exists(settings_path):
-        try:
-            with open(settings_path, 'r') as f:
-                settings = json.load(f)
-        except Exception:
-            settings = {}
-        if 'enabledPlugins' not in settings or not isinstance(settings['enabledPlugins'], dict):
-            settings['enabledPlugins'] = {}
-        settings['enabledPlugins']['opencode@tasict-opencode-plugin-cc'] = True
-        with open(settings_path, 'w') as f:
-            json.dump(settings, f, indent=2)
-            f.write('\n')
     "
+
+    # 3. Ensure enabled in settings.json safely via settings_updater.py
+    ${pkgs.python3}/bin/python3 ${./claude/session-index/settings_updater.py} enable-plugin "opencode@tasict-opencode-plugin-cc"
+  '';
+
+  # Register claude-session-index background hook in hooks.SessionStart.
+  # claudeSessionIndexPkg is in home.packages, so the profile bin is the stable
+  # path across generations and needs no symlink of its own.
+  home.activation.claudeSessionIndexHook = lib.hm.dag.entryAfter [ "writeBoundary" "linkGeneration" ] ''
+    ${pkgs.python3}/bin/python3 ${./claude/session-index/settings_updater.py} hook "${config.home.profileDirectory}/bin/claude-session-index"
+  '';
+
+  # Claude Code keeps credentials, settings and session transcripts in one
+  # directory, so a second account needs a second CLAUDE_CONFIG_DIR and would
+  # otherwise get a second, empty /resume list. Symlink everything that is not
+  # the login back to ~/.claude so both accounts read and write one set of
+  # sessions, prompt history, settings and plugins.
+  #
+  # Left unshared on purpose: .credentials.json and .claude.json carry the
+  # account identity, and policy-limits.json, remote-settings.json and
+  # stats-cache.json are per-account usage state. The daemon files are left
+  # alone too, since both profiles running one daemon lock would collide.
+  #
+  # This is an activation script rather than home.file entries because
+  # checkLinkTargets aborts activation when a path is a symlink that does not
+  # point into the nix store, which is exactly what these are. `ln -sfn` also
+  # repairs a link that Claude Code replaced with a real file.
+  home.activation.claudePersonalShared = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    W="$HOME/.claude"
+    P="$HOME/.claude-personal"
+    mkdir -p "$P"
+    for n in backups cache file-history jobs paste-cache plans plugins projects \
+             session-env session-index sessions shell-snapshots tasks telemetry \
+             history.jsonl settings.json statusline-command.sh; do
+      [ -e "$W/$n" ] || continue
+      if [ -e "$P/$n" ] && [ ! -L "$P/$n" ]; then
+        echo "claude-personal: $P/$n is real, not linking (move it aside first)" >&2
+        continue
+      fi
+      ln -sfn "$W/$n" "$P/$n"
+    done
   '';
 }

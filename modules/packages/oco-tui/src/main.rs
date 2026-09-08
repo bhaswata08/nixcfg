@@ -179,6 +179,7 @@ pub struct JobItem {
     pub backend: String,
     pub elapsed: String,
     pub request_first_line: String,
+    pub request_full: String,
     pub updated_at: Option<String>,
     pub created_at: Option<String>,
     pub log_file: Option<String>,
@@ -213,14 +214,18 @@ impl JobItem {
             "-".to_string()
         };
 
-        let request_first_line = raw
+        let request_full = raw
             .request
             .and_then(|r| r.task_text)
-            .map(|t| {
-                let first = t.lines().next().unwrap_or("").trim();
-                first.replace(['\t', '\r'], " ")
-            })
+            .map(|t| t.replace('\r', "").trim().to_string())
             .unwrap_or_default();
+
+        let request_first_line = request_full
+            .lines()
+            .next()
+            .unwrap_or("")
+            .trim()
+            .replace('\t', " ");
 
         Self {
             id: raw.id,
@@ -230,6 +235,7 @@ impl JobItem {
             backend,
             elapsed,
             request_first_line,
+            request_full,
             updated_at: raw.updated_at,
             created_at: raw.created_at,
             log_file: raw.log_file,
@@ -247,6 +253,7 @@ pub fn matches_filter(job: &JobItem, query: &str) -> bool {
         || job.type_agent.to_lowercase().contains(&q)
         || job.backend.to_lowercase().contains(&q)
         || job.request_first_line.to_lowercase().contains(&q)
+        || job.request_full.to_lowercase().contains(&q)
 }
 
 pub fn format_workspace_label(workspace_path: Option<&str>, dir_name: &str) -> String {
@@ -708,8 +715,54 @@ fn read_log_tail(path: &Path) -> io::Result<Vec<String>> {
     Ok(bound_lines(&raw_lines, MAX_LOG_LINES))
 }
 
+fn detail_header_sep(inner_width: u16, label: &str) -> Line<'static> {
+    let sep_width = inner_width as usize;
+    let left_dash = "---";
+    let used = left_dash.len() + label.len();
+    let right_dash = if sep_width > used {
+        "-".repeat(sep_width - used)
+    } else {
+        "---".to_string()
+    };
+    let sep_text = format!("{left_dash}{label}{right_dash}");
+    Line::from(Span::styled(
+        sep_text,
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    ))
+}
+
 fn load_detail_lines(job: &JobItem, inner_width: u16) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
+
+    // Header block: full ID + full request text first, so `g`
+    // (scroll_detail_top) jumps straight to the untruncated values.
+    lines.push(detail_header_sep(inner_width, " Job "));
+    lines.push(Line::from(vec![
+        Span::styled(
+            "ID: ",
+            Style::default().add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(job.id.clone()),
+    ]));
+    lines.push(Line::from(Span::styled(
+        "Request:",
+        Style::default().add_modifier(Modifier::BOLD),
+    )));
+    if job.request_full.trim().is_empty() {
+        lines.push(Line::from(Span::styled(
+            "(no request text)",
+            Style::default().fg(Color::DarkGray),
+        )));
+    } else {
+        let wrapped = wrap_text(&job.request_full, inner_width as usize);
+        for wrap_line in wrapped {
+            lines.push(Line::from(Span::raw(wrap_line)));
+        }
+    }
+    let body_start = lines.len();
+
     let log_path_buf = job.log_file.as_ref().map(PathBuf::from);
     let mut loaded_trace = false;
 
@@ -733,23 +786,7 @@ fn load_detail_lines(job: &JobItem, inner_width: u16) -> Vec<Line<'static>> {
             if let Ok(content) = std::fs::read_to_string(&result_path) {
                 if let Ok(res) = serde_json::from_str::<JobResultData>(&content) {
                     if let Some(rendered) = res.rendered.filter(|r| !r.trim().is_empty()) {
-                        let sep_width = inner_width as usize;
-                        let left_dash = "---";
-                        let label = " Result ";
-                        let used = left_dash.len() + label.len();
-                        let right_dash = if sep_width > used {
-                            "-".repeat(sep_width - used)
-                        } else {
-                            "---".to_string()
-                        };
-                        let sep_text = format!("{left_dash}{label}{right_dash}");
-
-                        lines.push(Line::from(Span::styled(
-                            sep_text,
-                            Style::default()
-                                .fg(Color::Yellow)
-                                .add_modifier(Modifier::BOLD),
-                        )));
+                        lines.push(detail_header_sep(inner_width, " Result "));
 
                         let wrapped = wrap_text(&rendered, inner_width as usize);
                         for wrap_line in wrapped {
@@ -761,7 +798,7 @@ fn load_detail_lines(job: &JobItem, inner_width: u16) -> Vec<Line<'static>> {
         }
     }
 
-    if lines.is_empty() {
+    if lines.len() == body_start {
         if loaded_trace {
             lines.push(Line::from(Span::styled(
                 "Log file is empty.",
@@ -1444,6 +1481,24 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
             })
             .collect();
 
+        let table_focused = app.focused_pane == FocusedPane::Table || detail_area.is_none();
+        let (row_highlight_style, highlight_symbol) = if table_focused {
+            (
+                Style::default()
+                    .bg(Color::Cyan)
+                    .fg(Color::Black)
+                    .add_modifier(Modifier::BOLD),
+                "> ",
+            )
+        } else {
+            (
+                Style::default()
+                    .bg(Color::Gray)
+                    .fg(Color::Black),
+                "  ",
+            )
+        };
+
         let table = Table::new(rows, widths)
             .header(
                 Row::new(header_cells)
@@ -1457,12 +1512,8 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
                     .border_style(table_border_style)
                     .title(" Jobs "),
             )
-            .row_highlight_style(
-                Style::default()
-                    .bg(Color::DarkGray)
-                    .add_modifier(Modifier::BOLD),
-            )
-            .highlight_symbol("> ");
+            .row_highlight_style(row_highlight_style)
+            .highlight_symbol(highlight_symbol);
 
         frame.render_stateful_widget(table, table_area, &mut app.table_state);
     }
@@ -1971,6 +2022,7 @@ mod tests {
         assert_eq!(item.backend, "agy");
         assert_eq!(item.elapsed, "5m");
         assert_eq!(item.request_first_line, "First line of task");
+        assert_eq!(item.request_full, "First line of task\nSecond line");
         assert_eq!(item.log_file, Some("/tmp/task-123.log".to_string()));
     }
 
@@ -2222,6 +2274,7 @@ mod tests {
             backend: "agy".to_string(),
             elapsed: "10s".to_string(),
             request_first_line: "do something".to_string(),
+            request_full: "do something".to_string(),
             updated_at: None,
             created_at: None,
             log_file: Some("/tmp/nonexistent-trace.log".to_string()),
@@ -2330,6 +2383,7 @@ mod tests {
             backend: "agy".to_string(),
             elapsed: "5m".to_string(),
             request_first_line: "Implement filter feature".to_string(),
+            request_full: "Implement filter feature".to_string(),
             updated_at: None,
             created_at: None,
             log_file: None,
@@ -2372,6 +2426,7 @@ mod tests {
             backend: "opencode".to_string(),
             elapsed: "12s".to_string(),
             request_first_line: "do a review".to_string(),
+            request_full: "do a review".to_string(),
             updated_at: None,
             created_at: None,
             log_file: None,
@@ -2399,6 +2454,7 @@ mod tests {
             backend: "agy".to_string(),
             elapsed: "1s".to_string(),
             request_first_line: "apple task".to_string(),
+            request_full: "apple task".to_string(),
             updated_at: None,
             created_at: None,
             log_file: None,
@@ -2411,6 +2467,7 @@ mod tests {
             backend: "agy".to_string(),
             elapsed: "2s".to_string(),
             request_first_line: "banana task".to_string(),
+            request_full: "banana task".to_string(),
             updated_at: None,
             created_at: None,
             log_file: None,
@@ -2455,6 +2512,7 @@ mod tests {
                 backend: "agy".to_string(),
                 elapsed: "10s".to_string(),
                 request_first_line: "terminal job".to_string(),
+                request_full: "terminal job".to_string(),
                 updated_at: None,
                 created_at: None,
                 log_file: None,
@@ -2572,4 +2630,62 @@ mod tests {
             terminal.draw(|f| render_ui(f, &mut app)).unwrap();
         }
     }
+
+    #[test]
+    fn test_load_detail_lines_header_and_fallback() {
+        let job_with_req = JobItem {
+            id: "task-detail-header-123456789".to_string(),
+            status: "running".to_string(),
+            status_category: StatusCategory::Active,
+            type_agent: "task/coder".to_string(),
+            backend: "agy".to_string(),
+            elapsed: "10s".to_string(),
+            request_first_line: "line 1".to_string(),
+            request_full: "line 1\nline 2\nline 3".to_string(),
+            updated_at: None,
+            created_at: None,
+            log_file: None,
+        };
+
+        let lines = load_detail_lines(&job_with_req, 80);
+        // Expect:
+        // [0] --- Job ------------------- (detail_header_sep)
+        // [1] ID: task-detail-header-123456789
+        // [2] Request:
+        // [3] line 1
+        // [4] line 2
+        // [5] line 3
+        // [6] No trace log available for this job. (body_start fallback)
+        assert!(lines.len() >= 6);
+        let s0: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(s0.starts_with("--- Job "));
+
+        let s1: String = lines[1].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(s1, "ID: task-detail-header-123456789");
+
+        let s2: String = lines[2].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(s2, "Request:");
+
+        let s3: String = lines[3].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(s3, "line 1");
+
+        let s4: String = lines[4].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(s4, "line 2");
+
+        let s5: String = lines[5].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(s5, "line 3");
+
+        let last: String = lines.last().unwrap().spans.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(last, "No trace log available for this job.");
+
+        // Also test empty request fallback text
+        let job_empty_req = JobItem {
+            request_full: String::new(),
+            ..job_with_req
+        };
+        let lines_empty = load_detail_lines(&job_empty_req, 80);
+        let s3_empty: String = lines_empty[3].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(s3_empty, "(no request text)");
+    }
 }
+
