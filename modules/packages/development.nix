@@ -82,6 +82,21 @@
       };
       cargoLock.lockFile = ./latex2unicode/Cargo.lock;
     })
+    # Ratatui job browser for the opencode companion, replacing the
+    # `oco status` text dump.
+    (rustPlatform.buildRustPackage {
+      pname = "oco-tui";
+      version = "0.1.0";
+      src = lib.fileset.toSource {
+        root = ./oco-tui;
+        fileset = lib.fileset.unions [
+          ./oco-tui/Cargo.toml
+          ./oco-tui/Cargo.lock
+          ./oco-tui/src
+        ];
+      };
+      cargoLock.lockFile = ./oco-tui/Cargo.lock;
+    })
     markdownlint-cli2 # markdown linter surfaced via none-ls diagnostics
 
     # System and Desktop

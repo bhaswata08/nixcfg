@@ -96,9 +96,10 @@ def synclaude [
         CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
         CLAUDE_CODE_MAX_CONTEXT_TOKENS: ($max_context | into string)
 
-        # Inference goes to Synthetic, so the Anthropic account only decides
-        # where sessions, history and settings are written. Keep that on the
-        # personal profile (the one `ccp` uses) rather than the work account.
+        # Inference goes to Synthetic, so the Anthropic account here only
+        # decides which credentials sit on disk. Keep that on the personal
+        # profile (the one `ccp` uses) rather than the work account. Sessions
+        # and history are shared with ~/.claude either way.
         CLAUDE_CONFIG_DIR: ($env.HOME | path join ".claude-personal")
     } { ^claude ...$args }
 }
@@ -328,38 +329,85 @@ def --env heal-claude-session [
 # The 'current' segment is a stable symlink that survives plugin version bumps.
 const OPENCODE_COMPANION = "~/.claude/plugins/cache/tasict-opencode-plugin-cc/opencode/current/scripts/opencode-companion.mjs"
 
-def opencode-companion [...args: string] {
+def --wrapped opencode-companion [...args: string] {
     ^node ($OPENCODE_COMPANION | path expand) ...$args
 }
 
-# Inspect or manage opencode companion background jobs.
+def "nu-complete oco jobs" [] {
+    try {
+        let data = (opencode-companion status --json | from json)
+        let jobs = (
+            ($data.running? | default [])
+            | append (if ($data.latestFinished? | is-empty) { [] } else { [$data.latestFinished] })
+            | append ($data.recent? | default [])
+        )
+        $jobs | each {|j| {value: $j.id, description: $"($j.status) - ($j.type)"} } | uniq-by value
+    } catch {
+        []
+    }
+}
+
+def "nu-complete oco running-jobs" [] {
+    try {
+        let data = (opencode-companion status --json | from json)
+        ($data.running? | default []) | each {|j| {value: $j.id, description: $"($j.status) - ($j.type)"} } | uniq-by value
+    } catch {
+        []
+    }
+}
+
+# Launch the interactive TUI job browser for opencode companion background jobs.
 #
-# The opencode companion script tracks background jobs dispatched during
-# opencode sessions. This command wraps the companion script for fast shell access.
+# Opens a full-screen terminal interface to browse and inspect active and recent
+# background jobs in the current workspace. Supports vim-style navigation keys:
+#   j/k           - move down/up one row
+#   g/G           - jump to top/bottom of job list
+#   ctrl-d/ctrl-u - scroll half page down/up
+#   r             - refresh job list immediately
+#   q             - quit the TUI
 #
-#   oco                 # show this help text
-#   oco status          # show running and recent jobs
-#   oco watch           # refresh status every 5 seconds
-#   oco result <job>    # show full output for a job
-#   oco cancel <job>    # cancel a running job
+# Output:
+# Launches the oco-tui dashboard, or displays usage help if oco-tui is not installed.
+#
+# Examples:
+#   oco
 def oco [] {
-    help oco
+    if (which oco-tui | is-empty) {
+        print "oco-tui is not installed yet"
+        help oco
+    } else {
+        ^oco-tui
+    }
 }
 
 # Show running and recent opencode jobs for the current workspace.
 #
-# Jobs are per-workspace. The list shows only jobs started in or near the
-# current directory. A job dispatched from another repository will not appear.
+# Queries the companion script for background jobs. Jobs are per-workspace:
+# the list shows only jobs started in or near the current directory. A job
+# dispatched from another repository will not appear here.
 #
+# Output:
+# Prints Markdown sections for Running Jobs (job ID, type, state, elapsed
+# time, and recent log breadcrumbs), Latest Finished job, and Recent Jobs
+# (ID, status, and duration). If no jobs exist for the workspace, prints
+# "No OpenCode jobs found for this workspace.".
+#
+# Examples:
 #   oco status
 def "oco status" [] {
     opencode-companion status
 }
 
-# Watch opencode job status refreshed every 5 seconds.
+# Watch opencode job status refreshed on a 5-second loop.
 #
-# Refreshes the display in a loop until interrupted with Ctrl-C.
+# Continuously monitors jobs for the current workspace by repainting the status
+# display every 5 seconds until interrupted with Ctrl-C.
 #
+# Output:
+# Clears the terminal screen every 5 seconds and renders the updated status overview,
+# showing active running jobs, latest finished job, and recent job history.
+#
+# Examples:
 #   oco watch
 def "oco watch" [] {
     loop {
@@ -369,28 +417,73 @@ def "oco watch" [] {
     }
 }
 
-# Display full output for an opencode job.
+# Display full output and metadata for an opencode job.
 #
-# Prints the full output log of a job. The job argument accepts a full job id
-# or any unique prefix.
+# Fetches and displays the complete execution output and summary for a single job
+# in the current workspace. The argument accepts a full job ID or any unique prefix.
 #
+# Output:
+# Prints Markdown containing job metadata (Type, Status, Duration, OpenCode
+# Session ID) followed by the task output log under an Output section. If no
+# finished job matches the ID, prints "No finished job found.".
+#
+# Examples:
 #   oco result task-mtr4nxgf
-#   oco result mtr4
 def "oco result" [
-    job: string  # job id or unique prefix
+    job: string@"nu-complete oco jobs"  # job id or unique prefix
 ] {
     opencode-companion result $job
 }
 
-# Cancel a running opencode job.
+# Cancel a running opencode background job.
 #
-# Sends a cancellation signal to an active background job. The job argument
-# accepts a full job id or any unique prefix.
+# Sends a cancellation signal to an active background job in the current workspace,
+# aborting its session and terminating the associated worker process. The argument
+# accepts a full job ID or any unique prefix.
 #
+# Output:
+# Prints "Canceled job: <id>" when successfully terminated, or "No active job to cancel."
+# if no running job matches.
+#
+# Examples:
 #   oco cancel task-mtr6swq3
-#   oco cancel mtr6
 def "oco cancel" [
-    job: string  # job id or unique prefix
+    job: string@"nu-complete oco running-jobs"  # job id or unique prefix
 ] {
     opencode-companion cancel $job
+}
+
+# Clear terminal opencode background jobs from the current workspace.
+#
+# Removes completed, failed, and cancelled jobs from the current workspace
+# and deletes their associated log and data files. Running jobs are never
+# touched. An optional keep count preserves the specified number of most
+# recent terminal jobs.
+#
+# Output:
+# Prints a Markdown summary showing the count and IDs of cleared jobs and
+# the count of kept jobs, or "No terminal jobs to clear." when empty.
+# When --json is specified, outputs a JSON record.
+#
+# Examples:
+#   oco clear
+#   oco clear --keep 5
+#   oco clear --dry-run
+#   oco clear --json
+def "oco clear" [
+    --keep: int   # number of recent terminal jobs to keep (default 0)
+    --dry-run     # preview jobs that would be cleared without deleting files
+    --json        # output result as JSON
+] {
+    mut args = ["clear"]
+    if $keep != null {
+        $args = ($args | append ["--keep" ($keep | into string)])
+    }
+    if $dry_run {
+        $args = ($args | append ["--dry-run"])
+    }
+    if $json {
+        $args = ($args | append ["--json"])
+    }
+    opencode-companion ...$args
 }
