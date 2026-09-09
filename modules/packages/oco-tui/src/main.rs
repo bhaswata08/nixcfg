@@ -20,6 +20,17 @@ use ratatui::{
 };
 use serde::Deserialize;
 
+// Tokyo Night palette (fixed 24-bit truecolor to avoid wallust ANSI remapping)
+const ACCENT: Color = Color::Rgb(125, 207, 255); // #7dcfff
+const DIM: Color = Color::Rgb(86, 95, 137); // #565f89
+const WARN: Color = Color::Rgb(224, 175, 104); // #e0af68
+const BG_DARK: Color = Color::Rgb(26, 27, 38); // #1a1b26
+const FG: Color = Color::Rgb(192, 202, 245); // #c0caf5
+const ERROR: Color = Color::Rgb(247, 118, 142); // #f7768e
+const OK: Color = Color::Rgb(158, 206, 106); // #9ece6a
+const SPECIAL: Color = Color::Rgb(187, 154, 247); // #bb9af7
+const ROW_SEL_BG: Color = Color::Rgb(47, 53, 73); // #2f3549
+
 pub const MAX_STATE_FILE_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
 pub const COMPANION_DIR: &str = "/tmp/opencode-companion";
 
@@ -158,14 +169,14 @@ impl StatusCategory {
     pub fn style(&self) -> Style {
         match self {
             StatusCategory::Active => Style::default()
-                .fg(Color::Yellow)
+                .fg(WARN)
                 .add_modifier(Modifier::BOLD),
-            StatusCategory::Completed => Style::default().fg(Color::Green),
-            StatusCategory::Failed => Style::default().fg(Color::Red),
+            StatusCategory::Completed => Style::default().fg(OK),
+            StatusCategory::Failed => Style::default().fg(ERROR),
             StatusCategory::Cancelled => Style::default()
-                .fg(Color::DarkGray)
+                .fg(DIM)
                 .add_modifier(Modifier::DIM),
-            StatusCategory::Unknown => Style::default().fg(Color::Reset),
+            StatusCategory::Unknown => Style::default().fg(FG),
         }
     }
 }
@@ -579,7 +590,7 @@ pub fn render_trace_entry(entry: &ProcessedTraceEntry, pane_width: u16) -> Line<
             spans.push(Span::styled(
                 format!("{name} "),
                 Style::default()
-                    .fg(Color::Cyan)
+                    .fg(ACCENT)
                     .add_modifier(Modifier::BOLD),
             ));
             spans.push(Span::styled(
@@ -596,7 +607,7 @@ pub fn render_trace_entry(entry: &ProcessedTraceEntry, pane_width: u16) -> Line<
             spans.push(Span::styled(
                 text,
                 Style::default()
-                    .fg(Color::Green)
+                    .fg(OK)
                     .add_modifier(Modifier::DIM),
             ));
         }
@@ -609,14 +620,14 @@ pub fn render_trace_entry(entry: &ProcessedTraceEntry, pane_width: u16) -> Line<
             spans.push(Span::styled(
                 text,
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(DIM)
                     .add_modifier(Modifier::DIM),
             ));
         }
         TraceLine::Phase { phase, message, .. } => {
             spans.push(Span::styled(
                 format!("[{phase}] "),
-                Style::default().fg(Color::Yellow),
+                Style::default().fg(WARN),
             ));
             spans.push(Span::raw(format!("{message}{suffix}")));
         }
@@ -728,7 +739,7 @@ fn detail_header_sep(inner_width: u16, label: &str) -> Line<'static> {
     Line::from(Span::styled(
         sep_text,
         Style::default()
-            .fg(Color::Yellow)
+            .fg(WARN)
             .add_modifier(Modifier::BOLD),
     ))
 }
@@ -753,7 +764,7 @@ fn load_detail_lines(job: &JobItem, inner_width: u16) -> Vec<Line<'static>> {
     if job.request_full.trim().is_empty() {
         lines.push(Line::from(Span::styled(
             "(no request text)",
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(DIM),
         )));
     } else {
         let wrapped = wrap_text(&job.request_full, inner_width as usize);
@@ -802,12 +813,12 @@ fn load_detail_lines(job: &JobItem, inner_width: u16) -> Vec<Line<'static>> {
         if loaded_trace {
             lines.push(Line::from(Span::styled(
                 "Log file is empty.",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(DIM),
             )));
         } else {
             lines.push(Line::from(Span::styled(
                 "No trace log available for this job.",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(DIM),
             )));
         }
     }
@@ -1280,7 +1291,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
     if area.width < 10 || area.height < 4 {
         let msg = Paragraph::new("Terminal too small")
             .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::DarkGray));
+            .style(Style::default().fg(DIM));
         frame.render_widget(msg, area);
         return;
     }
@@ -1328,7 +1339,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
         header_spans.push(Span::styled(
             "ALL WORKSPACES",
             Style::default()
-                .fg(Color::Magenta)
+                .fg(SPECIAL)
                 .add_modifier(Modifier::BOLD),
         ));
     } else {
@@ -1338,7 +1349,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
         ));
         header_spans.push(Span::styled(
             &app.workspace_root,
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(ACCENT),
         ));
     }
 
@@ -1346,14 +1357,14 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
     header_spans.push(Span::styled(
         format!("{} running", app.running_count),
         Style::default()
-            .fg(Color::Yellow)
+            .fg(WARN)
             .add_modifier(Modifier::BOLD),
     ));
     header_spans.push(Span::raw(", "));
     header_spans.push(Span::styled(
         format!("{} recent", app.recent_count),
         Style::default()
-            .fg(Color::Green)
+            .fg(OK)
             .add_modifier(Modifier::BOLD),
     ));
     header_spans.push(Span::raw(format!(" ({} total)", app.all_jobs.len())));
@@ -1366,12 +1377,12 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
         ));
         header_spans.push(Span::styled(
             format!("\"{}\"", app.filter_query),
-            Style::default().fg(Color::Yellow),
+            Style::default().fg(WARN),
         ));
         header_spans.push(Span::styled(
             format!(" ({}/{} matches)", app.jobs.len(), app.all_jobs.len()),
             Style::default()
-                .fg(Color::Yellow)
+                .fg(WARN)
                 .add_modifier(Modifier::BOLD),
         ));
     }
@@ -1380,7 +1391,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
         header_spans.push(Span::raw("  |  "));
         header_spans.push(Span::styled(
             format!("Error: {err}"),
-            Style::default().fg(Color::Red),
+            Style::default().fg(ERROR),
         ));
     }
 
@@ -1392,9 +1403,9 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
     frame.render_widget(header_paragraph, header_area);
 
     let table_border_style = if app.focused_pane == FocusedPane::Table || detail_area.is_none() {
-        Style::default().fg(Color::Cyan)
+        Style::default().fg(ACCENT)
     } else {
-        Style::default().fg(Color::DarkGray)
+        Style::default().fg(DIM)
     };
 
     if app.jobs.is_empty() {
@@ -1413,7 +1424,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
         let empty_text = Paragraph::new(empty_message)
             .block(empty_block)
             .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::DarkGray));
+            .style(Style::default().fg(DIM));
         frame.render_widget(empty_text, table_area);
     } else {
         let (widths, header_cells) = if app.all_workspaces {
@@ -1485,16 +1496,16 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
         let (row_highlight_style, highlight_symbol) = if table_focused {
             (
                 Style::default()
-                    .bg(Color::Cyan)
-                    .fg(Color::Black)
+                    .bg(ACCENT)
+                    .fg(BG_DARK)
                     .add_modifier(Modifier::BOLD),
                 "> ",
             )
         } else {
             (
                 Style::default()
-                    .bg(Color::Gray)
-                    .fg(Color::Black),
+                    .bg(ROW_SEL_BG)
+                    .fg(FG),
                 "  ",
             )
         };
@@ -1558,7 +1569,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
             } else {
                 vec![Line::from(Span::styled(
                     "No job selected.",
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(DIM),
                 ))]
             };
 
@@ -1594,9 +1605,9 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
         }
 
         let detail_border_style = if app.focused_pane == FocusedPane::Detail {
-            Style::default().fg(Color::Cyan)
+            Style::default().fg(ACCENT)
         } else {
-            Style::default().fg(Color::DarkGray)
+            Style::default().fg(DIM)
         };
 
         let detail_block = Block::default()
@@ -1618,60 +1629,60 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
                 Span::styled(
                     " / ",
                     Style::default()
-                        .fg(Color::Yellow)
+                        .fg(WARN)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     &app.filter_query,
                     Style::default()
-                        .fg(Color::White)
+                        .fg(FG)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Span::styled("█", Style::default().fg(Color::Yellow)),
+                Span::styled("█", Style::default().fg(WARN)),
                 Span::raw("  "),
                 Span::styled(
                     "(Enter: apply, Esc: cancel)",
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(DIM),
                 ),
             ];
             let filter_paragraph =
-                Paragraph::new(Line::from(filter_spans)).style(Style::default().bg(Color::Black));
+                Paragraph::new(Line::from(filter_spans)).style(Style::default().bg(BG_DARK));
             frame.render_widget(filter_paragraph, footer_area);
         }
         InputMode::ConfirmCancel { job_id } => {
             let prompt_spans = vec![
                 Span::styled(
                     " Cancel job ",
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    Style::default().fg(ERROR).add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     job_id.as_str(),
                     Style::default()
-                        .fg(Color::White)
+                        .fg(FG)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     "? [y to confirm, any other key to abort] ",
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(WARN),
                 ),
             ];
             let prompt_paragraph =
-                Paragraph::new(Line::from(prompt_spans)).style(Style::default().bg(Color::Black));
+                Paragraph::new(Line::from(prompt_spans)).style(Style::default().bg(BG_DARK));
             frame.render_widget(prompt_paragraph, footer_area);
         }
         InputMode::ConfirmClear { count } => {
             let prompt_spans = vec![
                 Span::styled(
                     format!(" Clear {count} finished job(s)? "),
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    Style::default().fg(ERROR).add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     "[y to confirm, any other key to abort] ",
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(WARN),
                 ),
             ];
             let prompt_paragraph =
-                Paragraph::new(Line::from(prompt_spans)).style(Style::default().bg(Color::Black));
+                Paragraph::new(Line::from(prompt_spans)).style(Style::default().bg(BG_DARK));
             frame.render_widget(prompt_paragraph, footer_area);
         }
         InputMode::Normal => {
@@ -1679,42 +1690,42 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
                 Span::styled(
                     " Tab",
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": focus  "),
                 Span::styled(
                     "j/k",
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": nav/scroll  "),
                 Span::styled(
                     "g/G",
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": top/bottom  "),
                 Span::styled(
                     "^d/^u",
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": half-page  "),
                 Span::styled(
                     "r",
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": refresh  "),
                 Span::styled(
                     "q",
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": quit"),
@@ -1724,28 +1735,28 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
                 Span::styled(
                     " /",
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": filter  "),
                 Span::styled(
                     "c",
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": cancel  "),
                 Span::styled(
                     "X",
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": clear  "),
                 Span::styled(
                     "a",
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": toggle all ws"),
@@ -1753,9 +1764,9 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
 
             let footer_paragraph = if footer_height >= 2 {
                 Paragraph::new(vec![line1, line2])
-                    .style(Style::default().bg(Color::DarkGray).fg(Color::White))
+                    .style(Style::default().bg(DIM).fg(FG))
             } else {
-                Paragraph::new(line1).style(Style::default().bg(Color::DarkGray).fg(Color::White))
+                Paragraph::new(line1).style(Style::default().bg(DIM).fg(FG))
             };
             frame.render_widget(footer_paragraph, footer_area);
         }
