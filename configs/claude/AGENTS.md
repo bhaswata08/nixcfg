@@ -16,6 +16,8 @@
 - Apply that same high standard to engineering excellence: lint, test failures, and test flakiness.
   If you see one, even if it is not caused by what you are working on right now, still get it fixed.
 - Before using "dynamic workflows", "ultra code" or any harness feature that immediately spawns a large swarm of subagents, always explain the tradeoffs and ask the user for explicit approval.
+- In any PowerPoint deck you produce, no text may render below 14pt. This covers slide bullets, titles, captions, table cells, and text inside embedded figures. Check the rendered size on the slide, not the authored size: an SVG authored in an 800-unit viewBox but placed at 402pt wide scales by 0.5, so an 18px label arrives at 9pt. When a figure cannot hold text that large, cut text out of the figure instead of shrinking it.
+- For any Python work, start the project with `uv init` and add every dependency with `uv add`. Never `uv pip install`. `uv add` records the dependency in `pyproject.toml` and the lockfile, so it survives `uv sync` and a rebuilt venv; `uv pip install` writes only into `.venv` and is silently lost the next time anyone syncs. Keep `pyproject.toml` and `uv.lock` in the repo, and treat a dependency that is not in `pyproject.toml` as not installed.
 
 # Delegating work to other models
 
