@@ -100,6 +100,15 @@
     markdownlint-cli2 # markdown linter surfaced via none-ls diagnostics
 
     # System and Desktop
+    # The opencode companion needs lsof. Its transport resolves the
+    # `opencode serve` PID through lsof, and with lsof missing
+    # resolveServePid returns null and liveChildren is always 0, which
+    # disables the idle-timeout extensions and the bash-stuck detector
+    # without saying so. A healthy job that goes quiet for 10 minutes then
+    # dies of "session idle timeout", which fallback.mjs classifies as a
+    # transport failure and answers by re-running the job on the fallback
+    # model, over the first model's partial edits in the same worktree.
+    lsof
     chromium
     cups
     libglvnd
