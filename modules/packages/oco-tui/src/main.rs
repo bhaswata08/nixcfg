@@ -34,6 +34,80 @@ const ROW_SEL_BG: Color = Color::Rgb(47, 53, 73); // #2f3549
 pub const MAX_STATE_FILE_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
 pub const COMPANION_DIR: &str = "/tmp/opencode-companion";
 
+/// Candidate state roots, in the same priority order the companion plugin's
+/// `stateRoot()` uses. The plugin only lands in /tmp when the env var is unset
+/// AND it cannot derive its own data dir, which is what happens when it runs
+/// from a Nix store symlink. So the TUI cannot assume either location: it has
+/// to look where the plugin would have written.
+pub fn companion_state_candidates() -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+
+    if let Ok(val) = std::env::var("OPENCODE_COMPANION_DATA") {
+        if !val.trim().is_empty() {
+            roots.push(expand_tilde(val.trim()).join("state"));
+        }
+    }
+
+    if let Ok(val) = std::env::var("CLAUDE_PLUGIN_DATA") {
+        let path = expand_tilde(val.trim());
+        let names_us = path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_lowercase().contains("opencode"))
+            .unwrap_or(false);
+        if names_us {
+            roots.push(path.join("state"));
+        }
+    }
+
+    // The plugin's self-derived dir: ~/.claude/plugins/data/<plugin>-<owner>.
+    if let Ok(home) = std::env::var("HOME") {
+        let data_dir = PathBuf::from(&home).join(".claude/plugins/data");
+        if let Ok(entries) = std::fs::read_dir(&data_dir) {
+            let mut found: Vec<PathBuf> = entries
+                .flatten()
+                .map(|e| e.path())
+                .filter(|p| {
+                    p.file_name()
+                        .map(|n| n.to_string_lossy().to_lowercase().contains("opencode"))
+                        .unwrap_or(false)
+                })
+                .map(|p| p.join("state"))
+                .collect();
+            found.sort();
+            roots.extend(found);
+        }
+    }
+
+    roots.push(PathBuf::from(COMPANION_DIR));
+    roots
+}
+
+/// True when `dir` holds at least one workspace state file, which is how we
+/// tell a real state root from a directory that merely exists.
+fn has_workspace_state(dir: &Path) -> bool {
+    match std::fs::read_dir(dir) {
+        Ok(entries) => entries
+            .flatten()
+            .any(|e| e.path().join("state.json").is_file()),
+        Err(_) => false,
+    }
+}
+
+/// First candidate that actually holds job state, or the /tmp fallback so the
+/// error path still names a concrete directory.
+pub fn resolve_companion_state_dir() -> PathBuf {
+    let candidates = companion_state_candidates();
+    for dir in &candidates {
+        if has_workspace_state(dir) {
+            return dir.clone();
+        }
+    }
+    candidates
+        .into_iter()
+        .last()
+        .unwrap_or_else(|| PathBuf::from(COMPANION_DIR))
+}
+
 fn resolve_companion_path() -> Result<PathBuf, String> {
     let raw = match std::env::var("OCO_COMPANION") {
         Ok(val) if !val.trim().is_empty() => val,
@@ -703,6 +777,74 @@ pub fn wrap_text(text: &str, max_width: usize) -> Vec<String> {
     result
 }
 
+/// Word-wrap a styled line so no visual row exceeds `max_width` columns,
+/// keeping each character's style. Used by the detail pane's wrap mode, where
+/// the alternative is a trace line whose tail is cut off by the pane border.
+/// Continuation rows get `indent` leading spaces so they read as the same
+/// entry rather than as a new log line.
+pub fn wrap_styled_line(
+    line: &Line<'static>,
+    max_width: usize,
+    indent: usize,
+) -> Vec<Line<'static>> {
+    if max_width == 0 {
+        return vec![line.clone()];
+    }
+
+    let mut chars: Vec<(char, Style)> = Vec::new();
+    for span in &line.spans {
+        for ch in span.content.chars() {
+            chars.push((ch, span.style));
+        }
+    }
+
+    if chars.len() <= max_width {
+        return vec![line.clone()];
+    }
+
+    // An indent wider than the pane would leave no room for text.
+    let indent = indent.min(max_width.saturating_sub(1));
+    let cont_width = max_width - indent;
+
+    let mut rows: Vec<&[(char, Style)]> = Vec::new();
+    let mut rest = &chars[..];
+    loop {
+        let width = if rows.is_empty() { max_width } else { cont_width };
+        if rest.len() <= width {
+            break;
+        }
+        // Prefer breaking after the last space that fits; fall back to a hard
+        // break when a single token is wider than the pane.
+        let break_at = rest[..width + 1]
+            .iter()
+            .rposition(|(c, _)| *c == ' ')
+            .map(|i| i + 1)
+            .unwrap_or(width);
+        rows.push(&rest[..break_at]);
+        rest = &rest[break_at..];
+    }
+    if !rest.is_empty() {
+        rows.push(rest);
+    }
+
+    rows.into_iter()
+        .enumerate()
+        .map(|(i, row)| {
+            let mut spans: Vec<Span<'static>> = Vec::new();
+            if i > 0 && indent > 0 {
+                spans.push(Span::raw(" ".repeat(indent)));
+            }
+            for (ch, style) in row {
+                match spans.last_mut() {
+                    Some(last) if last.style == *style => last.content.to_mut().push(*ch),
+                    _ => spans.push(Span::styled(ch.to_string(), *style)),
+                }
+            }
+            Line::from(spans)
+        })
+        .collect()
+}
+
 const MAX_LOG_READ_BYTES: u64 = 256 * 1024; // 256 KB
 const MAX_LOG_LINES: usize = 800;
 
@@ -744,7 +886,11 @@ fn detail_header_sep(inner_width: u16, label: &str) -> Line<'static> {
     ))
 }
 
-fn load_detail_lines(job: &JobItem, inner_width: u16) -> Vec<Line<'static>> {
+/// Hanging indent for wrapped trace rows, sized to line up under the
+/// timestamp column so a continuation is obvious at a glance.
+const TRACE_WRAP_INDENT: usize = 9;
+
+fn load_detail_lines(job: &JobItem, inner_width: u16, wrap: bool) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
 
     // Header block: full ID + full request text first, so `g`
@@ -783,7 +929,15 @@ fn load_detail_lines(job: &JobItem, inner_width: u16) -> Vec<Line<'static>> {
                 let slice: Vec<&str> = raw_strings.iter().map(|s| s.as_str()).collect();
                 let entries = collapse_trace_lines(&slice);
                 for entry in entries {
-                    lines.push(render_trace_entry(&entry, inner_width));
+                    // pane_width 0 tells render_trace_entry not to truncate;
+                    // wrap mode reflows the whole line instead.
+                    let rendered =
+                        render_trace_entry(&entry, if wrap { 0 } else { inner_width });
+                    if wrap {
+                        lines.extend(wrap_styled_line(&rendered, inner_width as usize, TRACE_WRAP_INDENT));
+                    } else {
+                        lines.push(rendered);
+                    }
                 }
                 loaded_trace = true;
             }
@@ -834,6 +988,7 @@ pub enum FocusedPane {
 
 pub struct DetailCache {
     pub job_id: String,
+    pub wrap: bool,
     pub log_len: u64,
     pub result_len: Option<u64>,
     pub width: u16,
@@ -857,6 +1012,7 @@ pub struct App {
     pub detail_visible_lines: usize,
     pub detail_total_lines: usize,
     pub detail_cache: Option<DetailCache>,
+    pub detail_wrap: bool,
     pub last_selected_job_id: Option<String>,
 
     pub all_jobs: Vec<JobItem>,
@@ -884,6 +1040,7 @@ impl Default for App {
             detail_visible_lines: 10,
             detail_total_lines: 0,
             detail_cache: None,
+            detail_wrap: true,
             last_selected_job_id: None,
             all_jobs: Vec::new(),
             filter_query: String::new(),
@@ -965,6 +1122,14 @@ impl App {
         self.scroll_detail_up(amount);
     }
 
+    /// Flip the detail pane between reflowing long trace lines and letting
+    /// them run off the right edge. Wrapping changes the line count, so the
+    /// cached render is dropped and the scroll position re-clamped on redraw.
+    pub fn toggle_detail_wrap(&mut self) {
+        self.detail_wrap = !self.detail_wrap;
+        self.detail_cache = None;
+    }
+
     pub fn toggle_focus(&mut self) {
         self.focused_pane = match self.focused_pane {
             FocusedPane::Table => FocusedPane::Detail,
@@ -1002,7 +1167,7 @@ impl App {
 
     pub fn refresh(&mut self) {
         if self.all_workspaces {
-            match load_all_workspace_jobs_from_dir(Path::new(COMPANION_DIR)) {
+            match load_all_workspace_jobs_from_dir(&resolve_companion_state_dir()) {
                 Ok((loaded_jobs, loaded_ws)) => {
                     self.job_workspaces = loaded_ws;
                     self.running_count = loaded_jobs
@@ -1557,6 +1722,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
                         || cache.log_len != log_len
                         || cache.result_len != result_len
                         || cache.width != inner_width
+                        || cache.wrap != app.detail_wrap
                 }
                 None => true,
             },
@@ -1564,8 +1730,9 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
         };
 
         if need_reload {
+            let wrap = app.detail_wrap;
             let lines = if let Some(job) = app.selected_job() {
-                load_detail_lines(job, inner_width)
+                load_detail_lines(job, inner_width, wrap)
             } else {
                 vec![Line::from(Span::styled(
                     "No job selected.",
@@ -1576,6 +1743,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
             if let Some(id) = job_id {
                 app.detail_cache = Some(DetailCache {
                     job_id: id,
+                    wrap,
                     log_len,
                     result_len,
                     width: inner_width,
@@ -1759,7 +1927,18 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
                         .fg(ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Span::raw(": toggle all ws"),
+                Span::raw(": toggle all ws  "),
+                Span::styled(
+                    "w",
+                    Style::default()
+                        .fg(ACCENT)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(if app.detail_wrap {
+                    ": wrap on"
+                } else {
+                    ": wrap off"
+                }),
             ]);
 
             let footer_paragraph = if footer_height >= 2 {
@@ -1853,6 +2032,9 @@ fn run_app(
                             KeyCode::Char('a') => {
                                 app.all_workspaces = !app.all_workspaces;
                                 app.refresh();
+                            }
+                            KeyCode::Char('w') => {
+                                app.toggle_detail_wrap();
                             }
                             KeyCode::Tab => {
                                 app.toggle_focus();
@@ -2094,6 +2276,7 @@ mod tests {
                 detail_visible_lines: 10,
                 detail_total_lines: 0,
                 detail_cache: None,
+                detail_wrap: true,
                 last_selected_job_id: None,
                 all_jobs: Vec::new(),
                 filter_query: String::new(),
@@ -2314,6 +2497,7 @@ mod tests {
             detail_visible_lines: 10,
             detail_total_lines: 0,
             detail_cache: None,
+            detail_wrap: true,
             last_selected_job_id: Some("task-test-1".to_string()),
             all_jobs: vec![sample_job.clone()],
             filter_query: String::new(),
@@ -2342,6 +2526,7 @@ mod tests {
             detail_visible_lines: 10,
             detail_total_lines: 0,
             detail_cache: None,
+            detail_wrap: true,
             last_selected_job_id: None,
             all_jobs: Vec::new(),
             filter_query: String::new(),
@@ -2374,6 +2559,7 @@ mod tests {
             detail_visible_lines: 10,
             detail_total_lines: 0,
             detail_cache: None,
+            detail_wrap: true,
             last_selected_job_id: Some("task-test-1".to_string()),
             all_jobs: vec![sample_job],
             filter_query: String::new(),
@@ -2643,6 +2829,77 @@ mod tests {
     }
 
     #[test]
+    fn test_state_candidates_end_at_tmp_and_detect_real_roots() {
+        let candidates = companion_state_candidates();
+        assert_eq!(candidates.last().unwrap(), &PathBuf::from(COMPANION_DIR));
+
+        let tmp = std::env::temp_dir().join(format!(
+            "oco-tui-roots-{}-{}",
+            std::process::id(),
+            candidates.len()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("emptyws")).unwrap();
+        assert!(!has_workspace_state(&tmp));
+
+        std::fs::write(tmp.join("emptyws").join("state.json"), b"{}").unwrap();
+        assert!(has_workspace_state(&tmp));
+
+        assert!(!has_workspace_state(&tmp.join("does-not-exist")));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_wrap_styled_line_reflows_and_keeps_styles() {
+        let line = Line::from(vec![
+            Span::styled("17:35:45 ", Style::default().add_modifier(Modifier::DIM)),
+            Span::styled("[failed] ", Style::default().fg(ERROR)),
+            Span::raw("Both models failed. Primary prompt timeout, fallback quota reached."),
+        ]);
+
+        let rows = wrap_styled_line(&line, 30, 2);
+        assert!(rows.len() > 1);
+        for row in &rows {
+            let width: usize = row.spans.iter().map(|sp| sp.content.chars().count()).sum();
+            assert!(width <= 30, "row too wide: {width}");
+        }
+
+        let joined: String = rows
+            .iter()
+            .flat_map(|r| r.spans.iter())
+            .map(|sp| sp.content.to_string())
+            .collect();
+        assert_eq!(joined.replace(' ', ""), {
+            let orig: String = line.spans.iter().map(|sp| sp.content.to_string()).collect();
+            orig.replace(' ', "")
+        });
+
+        // The timestamp stays dim and the status stays red after reflowing.
+        assert_eq!(rows[0].spans[0].style.fg, None);
+        assert_eq!(rows[0].spans[1].style.fg, Some(ERROR));
+
+        // Continuation rows carry the hanging indent.
+        assert!(rows[1].spans[0].content.starts_with("  "));
+    }
+
+    #[test]
+    fn test_wrap_styled_line_hard_breaks_long_token() {
+        let line = Line::from(Span::raw("/tmp/a-very-long-path-without-any-spaces-at-all"));
+        let rows = wrap_styled_line(&line, 10, 0);
+        assert_eq!(rows.len(), 5);
+        for row in &rows {
+            let width: usize = row.spans.iter().map(|sp| sp.content.chars().count()).sum();
+            assert!(width <= 10);
+        }
+    }
+
+    #[test]
+    fn test_wrap_styled_line_zero_width_is_identity() {
+        let line = Line::from(Span::raw("unchanged"));
+        assert_eq!(wrap_styled_line(&line, 0, 2).len(), 1);
+    }
+
+    #[test]
     fn test_load_detail_lines_header_and_fallback() {
         let job_with_req = JobItem {
             id: "task-detail-header-123456789".to_string(),
@@ -2658,7 +2915,7 @@ mod tests {
             log_file: None,
         };
 
-        let lines = load_detail_lines(&job_with_req, 80);
+        let lines = load_detail_lines(&job_with_req, 80, true);
         // Expect:
         // [0] --- Job ------------------- (detail_header_sep)
         // [1] ID: task-detail-header-123456789
@@ -2694,7 +2951,7 @@ mod tests {
             request_full: String::new(),
             ..job_with_req
         };
-        let lines_empty = load_detail_lines(&job_empty_req, 80);
+        let lines_empty = load_detail_lines(&job_empty_req, 80, true);
         let s3_empty: String = lines_empty[3].spans.iter().map(|s| s.content.as_ref()).collect();
         assert_eq!(s3_empty, "(no request text)");
     }
