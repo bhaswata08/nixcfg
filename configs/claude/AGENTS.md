@@ -45,17 +45,26 @@ That happens inside the plugin, so you do not arrange it. The exception is
 start, so a job that fails with a `handoff` marker is asking you to run that
 review yourself.
 
-Two transports run those seats. `opencode` is the default and spends opencode's
-free contributor tier. `agy` drives the antigravity CLI on the Google account the
-Jio subscription pays for. Pass `--backend agy` in the rescue prompt to pick it,
-and the wrapper forwards the flag to `task`. Leaving it off keeps the default.
+Two transports run those seats. `opencode` is the default and reaches opencode's
+own models plus OpenRouter against a paid key. `agy` drives the antigravity CLI
+on the Google account the Jio subscription pays for. Pass `--backend agy` in
+the rescue prompt to pick it, and the wrapper forwards the flag to `task`.
+Leaving it off keeps the default.
 `task` accepts `--agent`, `--backend`, `--background`, `--fresh`, `--model`,
 `--resume-last`, `--task-file`, `--wait`, `--write`, and rejects anything else.
 
-Reach for `--backend agy` when opencode answers `rate_limit_exceeded`, which the
-contributor tier does under load. The two backends draw separate quotas, so one
-being spent says nothing about the other. agy's quota is per Google account with
-a weekly and a five-hour window, and the five-hour one binds first. Its Gemini
+opencode removed the free muse spark contributor tier, so
+`opencode/muse-spark-1.3-contributor-free` no longer answers: a prompt to it
+hangs rather than erroring. `coder` now reaches the same model through
+OpenRouter as `meta/muse-spark-1.3-contributor`, which bills the wallet at
+$0.10 and $0.20 per million with cache reads at $0.002. Cache hits run near
+79%, so the 21% that misses is most of the bill.
+
+That makes `--backend agy` the flag you pass to avoid spending rather than to
+escape a rate limit, which is the reverse of what it used to mean. The two
+backends draw separate quotas, so one being spent says nothing about the other.
+agy's quota is per Google account with a weekly and a five-hour window, and the
+five-hour one binds first. Its Gemini
 models and its Claude and GPT models sit in separate buckets, so the seat default
 of `gemini-3.8-flash-high` can have room while the Claude group reads 0%. Check
 the quota panel in the agy TUI before leaning on it.
@@ -67,6 +76,12 @@ Routing:
   it works, triaging issues, and every edit that follows from those. The seat
   does not have to produce an edit to be the right one, and "it is only reading"
   is not a reason to keep the work on your own model.
+- Reading a file whose path you already have is the exception. Use `Read`. In a
+  week of job records, 81 of 134 coder jobs finished inside 20 trace lines and
+  many were a single `Read` of a known path, each one paying for a session, a
+  model connection and a slice of quota to hand back something you could have
+  opened yourself. Understanding a repo is not the same as opening one named
+  file, and the rule above means the first.
 - Use `Explore` and `general-purpose` only to locate things. Which file defines
   this, where is it called, does this pattern appear anywhere. The answer is a
   path or a short list. As soon as the answer is an explanation or an edit, it
@@ -86,9 +101,19 @@ Routing:
 Do not announce a dispatch you have not made. "Handing it to a seat" followed by
 your own edit is worse than either choice made honestly.
 
-On fanning out: `coder` runs on opencode's free contributor tier, which has
-returned `429 Rate limit exceeded` under load and stalled a session. Dispatch
-two or three at a time and let them finish, rather than launching five at once.
+On fanning out: the companion refuses a coding job once two are already in
+flight, counting across every workspace on the machine, and tells you which
+jobs hold the slots. Treat that refusal as the answer, not as something to work
+around; `OPENCODE_MAX_CONCURRENT` exists for a run that genuinely needs more,
+not for getting past the cap.
+
+The cap is machine-wide because you cannot see the whole picture. Roughly half
+the overlap in a week of records came from a second Claude Code session working
+the same repo, which no rule addressed to you alone can catch. It is also
+cheaper than it looks to respect: a six-way fan-out drained a five-hour agy
+window in thirty-five minutes and left every job for the next sixteen hours
+with nothing to run on.
+
 `reviewer` and `adversary` cannot fan out at all, per the concurrency limit
 below.
 

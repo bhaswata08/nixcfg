@@ -1,7 +1,7 @@
 ---
 description: Implementation agent driven by Claude Code as orchestrator. Writes code, runs commands, reports what it changed.
 mode: all
-model: opencode/muse-spark-1.3-contributor-free
+model: openrouter/meta/muse-spark-1.3-contributor
 variant: xhigh
 temperature: 0.1
 ---
