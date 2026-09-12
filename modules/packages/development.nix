@@ -82,9 +82,33 @@
       };
       cargoLock.lockFile = ./latex2unicode/Cargo.lock;
     })
+    # Ratatui job browser for the opencode companion, replacing the
+    # `oco status` text dump.
+    (rustPlatform.buildRustPackage {
+      pname = "oco-tui";
+      version = "0.1.0";
+      src = lib.fileset.toSource {
+        root = ./oco-tui;
+        fileset = lib.fileset.unions [
+          ./oco-tui/Cargo.toml
+          ./oco-tui/Cargo.lock
+          ./oco-tui/src
+        ];
+      };
+      cargoLock.lockFile = ./oco-tui/Cargo.lock;
+    })
     markdownlint-cli2 # markdown linter surfaced via none-ls diagnostics
 
     # System and Desktop
+    # The opencode companion needs lsof. Its transport resolves the
+    # `opencode serve` PID through lsof, and with lsof missing
+    # resolveServePid returns null and liveChildren is always 0, which
+    # disables the idle-timeout extensions and the bash-stuck detector
+    # without saying so. A healthy job that goes quiet for 10 minutes then
+    # dies of "session idle timeout", which fallback.mjs classifies as a
+    # transport failure and answers by re-running the job on the fallback
+    # model, over the first model's partial edits in the same worktree.
+    lsof
     chromium
     cups
     libglvnd
@@ -96,9 +120,9 @@
     opencode
     antigravity-ide
     claude-code
+    antigravity-cli
     gh
     flyctl
-    kitty
   ];
   programs.direnv = {
     enable = true;

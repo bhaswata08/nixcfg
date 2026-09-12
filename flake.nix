@@ -15,6 +15,21 @@
       url = "github:youwen5/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    hermes-agent.url = "github:NousResearch/hermes-agent";
+
+    # Nebula, the glass theme zen's chrome is skinned with (configs/zen.nix).
+    # Plain CSS, not a flake.
+    #
+    # Pinned to a commit, not to a tag. The tags lag the tree they are named
+    # for: v3.3 holds a theme.json saying 3.2, under a differently cased
+    # directory layout. This rev is 3.3.3. An upgrade wants checking against
+    # whatever zen the zen-browser input is on at the time, since Nebula tracks
+    # zen's own versions.
+    zen-nebula = {
+      url = "github:JustAdumbPrsn/Zen-Nebula/31ba4a3bde77391e173a6a3460d9fb0ab9bca8a0";
+      flake = false;
+    };
     # pfm defaults to its own pinned nixpkgs; left alone it pulled a second
     # nixpkgs tree into the lock.
     pfm = {
@@ -35,6 +50,14 @@
     herdr = {
       url = "github:ogulcancelik/herdr";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # Fork of tasict/opencode-plugin-cc carrying the antigravity (agy)
+    # transport, which upstream does not have. Fix loop for that transport:
+    # commit in the checkout, push to this fork, nix flake update, just switch.
+    opencode-plugin-cc = {
+      url = "github:bhaswata08/opencode-plugin-cc/agy-transport";
+      flake = false;
     };
   };
 
@@ -60,12 +83,10 @@
           # it themed nothing and only emitted a deprecation warning.
           inputs.home-manager.nixosModules.home-manager
           ./configuration.nix
+          inputs.hermes-agent.nixosModules.default
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
-            # Move unmanaged files aside instead of aborting activation when a
-            # newly-managed path already exists on disk.
-            home-manager.backupFileExtension = "hm-bak";
 
             home-manager.extraSpecialArgs = {
               inherit inputs;

@@ -8,7 +8,10 @@
     ./configs/theming/niri.nix
     ./configs/theming/noctalia.nix
     ./configs/theming/themes.nix
+    ./configs/antigravity.nix
+    ./configs/opencode.nix
     ./configs/claude.nix
+    ./configs/no-mistakes.nix
     ./configs/nushell.nix
     ./configs/nvim.nix
     ./configs/obsidian.nix
@@ -18,6 +21,7 @@
     ./configs/rofi.nix
     ./configs/starship.nix
     ./configs/xdg-defaults.nix
+    ./configs/zen.nix
   ];
   gtk.gtk4.theme = config.gtk.theme;
   home.username = "bhaswata";

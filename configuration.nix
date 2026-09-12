@@ -29,6 +29,7 @@
       ./modules/hardware.nix
       ./modules/locale.nix
       ./modules/networking.nix
+      ./modules/nix-ld.nix
       ./modules/security.nix
       ./modules/services.nix
       ./modules/users.nix

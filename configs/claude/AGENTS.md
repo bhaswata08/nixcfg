@@ -1,6 +1,9 @@
+# Prose style: plain, direct English by default
+
+@~/.claude/soul.md
+
 # Global agent instructions
 
-- Never use the em dash "—". Use plain dash "-" instead
 - When writing commit messages, NEVER auto-add your agent name as co-author
 - Never manually modify CHANGELOG.md files or any files that are marked as auto-generated
 - When making technical decisions, do not give much weight to development cost.
@@ -13,14 +16,111 @@
 - Apply that same high standard to engineering excellence: lint, test failures, and test flakiness.
   If you see one, even if it is not caused by what you are working on right now, still get it fixed.
 - Before using "dynamic workflows", "ultra code" or any harness feature that immediately spawns a large swarm of subagents, always explain the tradeoffs and ask the user for explicit approval.
-- Use one name for one thing. Do not call the same item by two different names.
-- Use the short common word: start (not begin/commence/initiate), use (not utilize/leverage), help (not facilitate), make sure (not ensure), before (not prior to), after (not subsequent to), about (not regarding/concerning), get (not obtain/acquire), show (not demonstrate), also (not additionally/furthermore/moreover).
-- Give each word one meaning. "fall" means to move down, not to decrease.
-- No marketing adjectives: seamless, robust, powerful, cutting-edge, effortless, world-class, next-generation, revolutionary.
-- No complicated english, if the idea can be conveyed with simple english, do so.
+- In any PowerPoint deck you produce, no text may render below 14pt. This covers slide bullets, titles, captions, table cells, and text inside embedded figures. Check the rendered size on the slide, not the authored size: an SVG authored in an 800-unit viewBox but placed at 402pt wide scales by 0.5, so an 18px label arrives at 9pt. When a figure cannot hold text that large, cut text out of the figure instead of shrinking it.
+- For any Python work, start the project with `uv init` and add every dependency with `uv add`. Never `uv pip install`. `uv add` records the dependency in `pyproject.toml` and the lockfile, so it survives `uv sync` and a rebuilt venv; `uv pip install` writes only into `.venv` and is silently lost the next time anyone syncs. Keep `pyproject.toml` and `uv.lock` in the repo, and treat a dependency that is not in `pyproject.toml` as not installed.
 
-# AVOID the following
+# Delegating work to other models
 
-- Negative Parallelisms and Tailing Negations: Constructions like "Not only...but..." or "It's not just about..., it's..." are overused. So are clipped tailing-negation fragments such as "no guessing" or "no wasted motion" tacked onto the end of a sentence instead of written as a real clause.
-- Elegant Variation (Synonym Cycling): The protagonist faces many challenges. The main character must overcome obstacles. The central figure eventually triumphs. The hero returns home. After: The protagonist faces many challenges but eventually triumphs and returns home.
-- Passive Voice and Subjectless Fragments: LLMs often hide the actor or drop the subject entirely with lines like "No configuration file needed" or "The results are preserved automatically." Rewrite these when active voice makes the sentence clearer and more direct. Before: No configuration file needed. The results are preserved automatically. After: You do not need a configuration file. The system preserves the results automatically.
+**Delegating is the default. Doing the work yourself is the exception you have
+to justify.** When a request needs code read, explained, traced, changed, or
+tested, your first move is to dispatch a seat, not to open an editor. If you
+find yourself writing an `Edit`, a `Write`, or a `python3 - <<EOF` heredoc
+against a source file, stop: that work belonged to `coder`.
+
+Three seats run on models other than yours, configured in
+`~/.config/opencode/agent/`:
+
+- `coder` writes code. Send it implementation, debugging, and investigation.
+- `reviewer` reviews a diff and reports findings. It cannot edit.
+- `adversary` reviews a plan or design and reports holes. It cannot edit.
+
+Reach all three through the `opencode-rescue` subagent, which forwards to the
+opencode companion CLI. It IS a normal subagent - call the `Agent` tool with
+`subagent_type: "opencode:opencode-rescue"` and put the request in the prompt.
+Name the seat in the prompt when it is not `coder`, which is the default.
+
+Each seat has a second model that takes over when the first cannot be reached.
+That happens inside the plugin, so you do not arrange it. The exception is
+`reviewer`: its fallback is a Claude Code subagent on Sonnet, which only you can
+start, so a job that fails with a `handoff` marker is asking you to run that
+review yourself.
+
+Two transports run those seats. `opencode` is the default and reaches opencode's
+own models plus OpenRouter against a paid key. `agy` drives the antigravity CLI
+on the Google account the Jio subscription pays for. Pass `--backend agy` in
+the rescue prompt to pick it, and the wrapper forwards the flag to `task`.
+Leaving it off keeps the default.
+`task` accepts `--agent`, `--backend`, `--background`, `--fresh`, `--model`,
+`--resume-last`, `--task-file`, `--wait`, `--write`, and rejects anything else.
+
+opencode removed the free muse spark contributor tier, so
+`opencode/muse-spark-1.3-contributor-free` no longer answers: a prompt to it
+hangs rather than erroring. `coder` now reaches the same model through
+OpenRouter as `meta/muse-spark-1.3-contributor`, which bills the wallet at
+$0.10 and $0.20 per million with cache reads at $0.002. Cache hits run near
+79%, so the 21% that misses is most of the bill.
+
+That makes `--backend agy` the flag you pass to avoid spending rather than to
+escape a rate limit, which is the reverse of what it used to mean. The two
+backends draw separate quotas, so one being spent says nothing about the other.
+agy's quota is per Google account with a weekly and a five-hour window, and the
+five-hour one binds first. Its Gemini
+models and its Claude and GPT models sit in separate buckets, so the seat default
+of `gemini-3.8-flash-high` can have room while the Claude group reads 0%. Check
+the quota panel in the agy TUI before leaning on it.
+
+Routing:
+
+- Send `coder` anything that needs to understand the repo: reproducing a bug,
+  tracing a failure, working out why a test breaks, reading code to explain how
+  it works, triaging issues, and every edit that follows from those. The seat
+  does not have to produce an edit to be the right one, and "it is only reading"
+  is not a reason to keep the work on your own model.
+- Reading a file whose path you already have is the exception. Use `Read`. In a
+  week of job records, 81 of 134 coder jobs finished inside 20 trace lines and
+  many were a single `Read` of a known path, each one paying for a session, a
+  model connection and a slice of quota to hand back something you could have
+  opened yourself. Understanding a repo is not the same as opening one named
+  file, and the rule above means the first.
+- Use `Explore` and `general-purpose` only to locate things. Which file defines
+  this, where is it called, does this pattern appear anywhere. The answer is a
+  path or a short list. As soon as the answer is an explanation or an edit, it
+  belongs in a seat.
+- Always pass `model` when you dispatch a Claude Code subagent. Omitting it
+  makes the subagent inherit your model, so a `general-purpose` job that only
+  fetches pages and reads files burns Opus tokens on work Sonnet does just as
+  well. Pick by what the job needs: `model: "sonnet"` for locating, fetching,
+  extracting, summarising, and mechanical edits; `model: "haiku"` for
+  single-command lookups; your own model only when the job needs judgment you
+  cannot check cheaply afterwards.
+- Keep for yourself only: one or two lines you already have open, a command you
+  are running to answer a question, a commit, and the orchestration itself.
+  Length alone does not qualify a change - a forty-line edit is still `coder`'s
+  work. The test is whether you would have to read anything to make it.
+
+Do not announce a dispatch you have not made. "Handing it to a seat" followed by
+your own edit is worse than either choice made honestly.
+
+On fanning out: the companion refuses a coding job once two are already in
+flight, counting across every workspace on the machine, and tells you which
+jobs hold the slots. Treat that refusal as the answer, not as something to work
+around; `OPENCODE_MAX_CONCURRENT` exists for a run that genuinely needs more,
+not for getting past the cap.
+
+The cap is machine-wide because you cannot see the whole picture. Roughly half
+the overlap in a week of records came from a second Claude Code session working
+the same repo, which no rule addressed to you alone can catch. It is also
+cheaper than it looks to respect: a six-way fan-out drained a five-hour agy
+window in thirty-five minutes and left every job for the next sixteen hours
+with nothing to run on.
+
+`reviewer` and `adversary` cannot fan out at all, per the concurrency limit
+below.
+
+`reviewer` and `adversary` both spend the same synthetic.new key, and that plan
+allows one agent at a time. Never run them together, and do not run either
+alongside `synclaude`. Review one after the other, or send the second one to
+Sonnet.
+
+You orchestrate. Read the result, judge it, and decide what happens next. A seat
+reporting success is not evidence the work is right, so check the diff.

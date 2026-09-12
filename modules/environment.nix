@@ -30,6 +30,20 @@
     BROWSER = "${
       inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
     }/bin/zen";
+    # Where the opencode companion keeps its job records. Without this it walks
+    # a fallback chain and lands in /tmp/opencode-companion, so every dispatched
+    # job, its trace log and its result are lost on reboot. The plugin appends
+    # "state" to this path. Kept outside ~/.claude/plugins so a plugin version
+    # bump, which changes the cache directory, does not orphan the history.
+    OPENCODE_COMPANION_DATA = "/home/bhaswata/.local/share/opencode-companion";
+    # Absolute cap on one `agy --print` invocation. The agy runner has no idle
+    # watchdog, unlike the opencode transport, so its only timer is this one.
+    # Left at the shared 4h default, two jobs sat wedged for four hours each
+    # after their last tool call, and the failure they eventually reported was
+    # a stale stderr line from earlier in the run. Thirty minutes bounds what a
+    # wedged run costs without cutting off work that is still progressing: the
+    # longest job in a week of records ran 28 minutes of real activity.
+    AGY_PRINT_TIMEOUT_MS = "1800000";
   };
 
 }

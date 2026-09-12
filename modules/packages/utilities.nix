@@ -34,6 +34,7 @@
     vulkan-tools
     steam-run
     motrix
+    motrix-next
     flatpak
     wl-mirror
     jq
@@ -43,6 +44,7 @@
     nftables
     ngrok
     file
+    yazi
   ];
 
   programs.appimage.enable = true;

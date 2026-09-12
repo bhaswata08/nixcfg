@@ -11,19 +11,38 @@ let
   # picked entry as $1. Here the "entry" is whatever was typed, so the first
   # call prints nothing and the second opens the query.
   #
-  # HyDE ships a 200-line version of this with an engine picker, a recent-query
-  # cache and its own argument parser. anyrun's plugin was one DuckDuckGo
-  # prefix, so this matches that instead.
+  # A leading word picks the engine, DuckDuckGo takes everything else. HyDE
+  # ships 29 engines in a data file behind a picker UI; the six below are the
+  # ones worth a keystroke here, and the rest are a URL bar away. The list is
+  # repeated in the `message` line so the prefixes stay visible in the runner
+  # rather than living only in this file.
   websearch = pkgs.writeShellScriptBin "rofi-websearch" ''
     set -eu
     if [ $# -eq 0 ]; then
       # rofi-script protocol: \0<option>\x1f<value> sets a mode property.
       printf '\0prompt\x1fweb\n'
-      printf '\0message\x1fType a query, press Enter to search DuckDuckGo\n'
+      printf '\0message\x1fEnter searches DuckDuckGo. Prefix: nix opt gh yt w so\n'
       exit 0
     fi
-    query=$(printf '%s' "$1" | ${pkgs.jq}/bin/jq -sRr @uri)
-    url="https://duckduckgo.com/?q=$query"
+    # A prefix only counts when something follows it, so a bare "nix" searches
+    # for the word instead of opening an empty package list.
+    head=''${1%% *}
+    tail=''${1#* }
+    if [ "$tail" = "$1" ]; then
+      head=""
+      tail="$1"
+    fi
+    case "$head" in
+      nix) base="https://search.nixos.org/packages?query=" ;;
+      opt) base="https://search.nixos.org/options?query=" ;;
+      gh)  base="https://github.com/search?q=" ;;
+      yt)  base="https://www.youtube.com/results?search_query=" ;;
+      w)   base="https://en.wikipedia.org/w/index.php?search=" ;;
+      so)  base="https://stackoverflow.com/search?q=" ;;
+      *)   base="https://duckduckgo.com/?q="
+           tail="$1" ;;
+    esac
+    url="$base$(printf '%s' "$tail" | ${pkgs.jq}/bin/jq -sRr @uri)"
     # $BROWSER first, xdg-open only as a fallback. Under niri, xdg-open runs
     # its generic handler, and if the desktop-file lookup for zen ever misses
     # it walks a hardcoded list that reaches chromium before giving up.
@@ -32,6 +51,26 @@ let
       exec "$BROWSER" "$url"
     fi
     exec ${pkgs.xdg-utils}/bin/xdg-open "$url"
+  '';
+
+  # Nerd Font glyph picker, the one rofi mode HyDE had that nothing here
+  # covered. rofi-emoji handles Unicode emoji; this handles the private-use
+  # glyphs the configs in this repo are full of.
+  #
+  # The 10,764-entry database is vendored from HyDE (GPL-3.0), which derives it
+  # from ryanoasis/nerd-fonts glyphnames.json. Each line is the glyph, a tab,
+  # then its name.
+  glyph = pkgs.writeShellScriptBin "rofi-glyph" ''
+    set -eu
+    if [ $# -eq 0 ]; then
+      printf '\0prompt\x1fglyph\n'
+      printf '\0message\x1fType a name, Enter copies the glyph\n'
+      # rofi draws a tab as a single space, which would leave the two columns
+      # ragged, so the fields are rejoined with a fixed separator and the glyph
+      # is split back off the front below.
+      exec ${pkgs.gawk}/bin/awk -F'\t' '{ printf "%s  %s\n", $1, $2 }' ${./rofi/glyph.db}
+    fi
+    printf '%s' "''${1%% *}" | ${pkgs.wl-clipboard}/bin/wl-copy
   '';
 in
 {
@@ -63,6 +102,10 @@ in
         # lets both spell it the same way.
         path = "rofi-websearch";
       }
+      {
+        name = "glyph";
+        path = "rofi-glyph";
+      }
     ];
     extraConfig = {
       # Themes come from -theme on the command line (see configs/theming/
@@ -81,7 +124,10 @@ in
     };
   };
 
-  home.packages = [ websearch ];
+  home.packages = [
+    websearch
+    glyph
+  ];
 
   xdg.configFile = {
     "rofi/launcher.rasi".source = ./rofi/launcher.rasi;

@@ -58,5 +58,9 @@ logs/
 *.bak
 *.backup
 
+# Python bytecode
+__pycache__/
+*.pyc
+
 # hardware-configuration.nix is tracked on purpose: configuration.nix imports
 # it, so a fresh clone cannot evaluate without it.

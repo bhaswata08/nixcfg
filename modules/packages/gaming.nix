@@ -5,6 +5,7 @@
 
 {
 
+# Running using flatpak
   # environment.systemPackages = with pkgs; [
   #   bottles
   # ];
