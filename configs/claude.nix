@@ -20,6 +20,35 @@ let
     makeWrapper ${pkgs.python3}/bin/python3 $out/bin/claude-session-index \
       --add-flags "$out/lib/claude-session-index/cli.py"
   '';
+
+  claudeDefaultsJson = builtins.toJSON {
+    enforce = {
+      enabledPlugins = {
+        "lua-lsp@claude-plugins-official" = true;
+        "rust-analyzer-lsp@claude-plugins-official" = true;
+        "superpowers@claude-plugins-official" = true;
+        "context7@claude-plugins-official" = true;
+        "code-simplifier@claude-plugins-official" = true;
+      };
+      statusLine = {
+        type = "command";
+        command = "bash ${config.home.homeDirectory}/.claude/statusline-command.sh";
+      };
+    };
+    seed = {
+      model = "opus";
+      effortLevel = "medium";
+      theme = "auto";
+      modelSettings = {
+        "claude-sonnet-5" = {
+          effortLevel = "medium";
+        };
+        "claude-opus-5" = {
+          effortLevel = "medium";
+        };
+      };
+    };
+  };
 in
 {
   # ~/.claude is not an XDG directory, so this uses home.file rather than the
@@ -33,6 +62,12 @@ in
   # Default prose style, inlined by AGENTS.md via Claude Code's @path import.
   home.file.".claude/soul.md".source = ./claude/soul.md;
 
+  # Statusline script. Kept at the stable path ~/.claude/statusline-command.sh
+  # rather than pointing settings.json at a /nix/store path because (a) the
+  # existing claudePersonalShared activation script symlinks that exact name
+  # into ~/.claude-personal, and (b) a store path would churn every generation.
+  home.file.".claude/statusline-command.sh".source = ./claude/statusline-command.sh;
+
   # Skills, vendored per file (recursive) so hand-installed skills can still be
   # dropped into ~/.claude/skills without colliding with this entry.
   #
@@ -41,7 +76,10 @@ in
   # ~/.agents/.skill-lock.json and symlinks them into ~/.claude/skills. Two
   # owners for one path made checkLinkTargets abort the whole activation with
   # "would be clobbered", so nothing at all got linked. The installer keeps
-  # those three current; this list keeps the rest.
+  # those three current; this list keeps the rest (e.g. adversary, herdr).
+  #
+  # adversary runs an adversarial review pass over plans via opencode companion;
+  # vendored locally from ~/.claude/skills/adversary.
   #
   # herdr comes from upstream ogulcancelik/herdr; re-vendor with:
   #   curl -sL https://raw.githubusercontent.com/ogulcancelik/herdr/master/skills/herdr/SKILL.md \
@@ -141,6 +179,12 @@ in
   # path across generations and needs no symlink of its own.
   home.activation.claudeSessionIndexHook = lib.hm.dag.entryAfter [ "writeBoundary" "linkGeneration" ] ''
     ${pkgs.python3}/bin/python3 ${./claude/session-index/settings_updater.py} hook "${config.home.profileDirectory}/bin/claude-session-index"
+  '';
+
+  # Enforce declared plugins and statusLine in settings.json, and seed defaults
+  # (model, effortLevel, theme, modelSettings) if absent without clobbering user choices.
+  home.activation.claudeSettingsDefaults = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    ${pkgs.python3}/bin/python3 ${./claude/session-index/settings_updater.py} defaults ${lib.escapeShellArg claudeDefaultsJson}
   '';
 
   # Claude Code keeps credentials, settings and session transcripts in one

@@ -17,7 +17,11 @@
 
   # One file per seat. The plugin selects a seat by name, so the filename is the
   # interface: `coder`, `reviewer`, `adversary`, and the fallback the plugin
-  # retries `adversary` on.
+  # retries `adversary` on (`adversary-fallback`).
+  #
+  # Beyond those four plugin-named seats, two extra seats are vendored here:
+  # `adversary-deep` (deep adversarial review with parallel research subagents)
+  # and `researcher-or` (read-only research agent running via OpenRouter).
   #
   # Fallbacks are declared in the plugin, in scripts/lib/fallback.mjs, because
   # two of the three cross a boundary opencode has no way to express: `coder`

@@ -5,6 +5,7 @@ Shared helper for home-manager activation scripts modifying ~/.claude/settings.j
 
 from __future__ import annotations
 
+import copy
 import datetime
 import fcntl
 import json
@@ -176,9 +177,51 @@ def update_plugin(plugin_name: str) -> None:
     atomic_modify_settings(modifier)
 
 
+def update_defaults(defaults_json: str) -> None:
+    """Apply enforce and seed policies from a JSON document.
+
+    enforce: recursive dict merge that overwrites leaves.
+    seed: recursive dict merge that only fills in missing keys.
+    """
+    try:
+        data = json.loads(defaults_json)
+    except Exception as e:
+        sys.stderr.write(f"Error parsing defaults JSON: {e}\n")
+        sys.exit(1)
+
+    if not isinstance(data, dict):
+        sys.stderr.write("Error: defaults argument must be a JSON object\n")
+        sys.exit(1)
+
+    enforce_data = data.get("enforce", {})
+    seed_data = data.get("seed", {})
+
+    def _merge_enforce(base: dict, update: dict) -> None:
+        for k, v in update.items():
+            if isinstance(v, dict) and isinstance(base.get(k), dict):
+                _merge_enforce(base[k], v)
+            else:
+                base[k] = copy.deepcopy(v) if isinstance(v, (dict, list)) else v
+
+    def _merge_seed(base: dict, seed: dict) -> None:
+        for k, v in seed.items():
+            if k not in base or base[k] is None:
+                base[k] = copy.deepcopy(v) if isinstance(v, (dict, list)) else v
+            elif isinstance(base[k], dict) and isinstance(v, dict):
+                _merge_seed(base[k], v)
+
+    def modifier(settings: dict) -> None:
+        if isinstance(enforce_data, dict):
+            _merge_enforce(settings, enforce_data)
+        if isinstance(seed_data, dict):
+            _merge_seed(settings, seed_data)
+
+    atomic_modify_settings(modifier)
+
+
 def main() -> None:
     if len(sys.argv) < 2:
-        sys.stderr.write("Usage: settings_updater.py <hook|enable-plugin> [args...]\n")
+        sys.stderr.write("Usage: settings_updater.py <hook|enable-plugin|defaults> [args...]\n")
         sys.exit(1)
 
     cmd = sys.argv[1]
@@ -192,6 +235,11 @@ def main() -> None:
             sys.stderr.write("Usage: settings_updater.py enable-plugin <plugin_name>\n")
             sys.exit(1)
         update_plugin(sys.argv[2])
+    elif cmd == "defaults":
+        if len(sys.argv) < 3:
+            sys.stderr.write("Usage: settings_updater.py defaults <json>\n")
+            sys.exit(1)
+        update_defaults(sys.argv[2])
     else:
         sys.stderr.write(f"Unknown command: {cmd}\n")
         sys.exit(1)
