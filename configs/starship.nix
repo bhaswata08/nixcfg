@@ -25,12 +25,12 @@
 	truncation_symbol = "_/";
 	truncate_to_repo = false;
         home_symbol = "~";
-        read_only = " ";
+        read_only = " ";
         read_only_style = "red";
         repo_root_format = "[$before_root_path]($style)[$repo_root]($repo_root_style)[$path]($style)[$read_only]($read_only_style) ";
       };
       directory.substitutions = {
-        "Documents" = " ";
+        "Documents" = " ";
         "Downloads" = " ";
         "Music" = " ";
         "Pictures" = " ";
