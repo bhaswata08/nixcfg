@@ -204,6 +204,12 @@ pub struct CompanionState {
     pub jobs: Vec<RawJob>,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ClearResult {
+    #[serde(default)]
+    pub cleared: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkspaceInfo {
     pub label: String,
@@ -242,14 +248,10 @@ impl StatusCategory {
 
     pub fn style(&self) -> Style {
         match self {
-            StatusCategory::Active => Style::default()
-                .fg(WARN)
-                .add_modifier(Modifier::BOLD),
+            StatusCategory::Active => Style::default().fg(WARN).add_modifier(Modifier::BOLD),
             StatusCategory::Completed => Style::default().fg(OK),
             StatusCategory::Failed => Style::default().fg(ERROR),
-            StatusCategory::Cancelled => Style::default()
-                .fg(DIM)
-                .add_modifier(Modifier::DIM),
+            StatusCategory::Cancelled => Style::default().fg(DIM).add_modifier(Modifier::DIM),
             StatusCategory::Unknown => Style::default().fg(FG),
         }
     }
@@ -663,9 +665,7 @@ pub fn render_trace_entry(entry: &ProcessedTraceEntry, pane_width: u16) -> Line<
 
             spans.push(Span::styled(
                 format!("{name} "),
-                Style::default()
-                    .fg(ACCENT)
-                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
             ));
             spans.push(Span::styled(
                 format!("{final_args}{suffix}"),
@@ -680,9 +680,7 @@ pub fn render_trace_entry(entry: &ProcessedTraceEntry, pane_width: u16) -> Line<
             };
             spans.push(Span::styled(
                 text,
-                Style::default()
-                    .fg(OK)
-                    .add_modifier(Modifier::DIM),
+                Style::default().fg(OK).add_modifier(Modifier::DIM),
             ));
         }
         TraceLine::Thinking { duration, .. } => {
@@ -693,9 +691,7 @@ pub fn render_trace_entry(entry: &ProcessedTraceEntry, pane_width: u16) -> Line<
             };
             spans.push(Span::styled(
                 text,
-                Style::default()
-                    .fg(DIM)
-                    .add_modifier(Modifier::DIM),
+                Style::default().fg(DIM).add_modifier(Modifier::DIM),
             ));
         }
         TraceLine::Phase { phase, message, .. } => {
@@ -809,7 +805,11 @@ pub fn wrap_styled_line(
     let mut rows: Vec<&[(char, Style)]> = Vec::new();
     let mut rest = &chars[..];
     loop {
-        let width = if rows.is_empty() { max_width } else { cont_width };
+        let width = if rows.is_empty() {
+            max_width
+        } else {
+            cont_width
+        };
         if rest.len() <= width {
             break;
         }
@@ -880,9 +880,7 @@ fn detail_header_sep(inner_width: u16, label: &str) -> Line<'static> {
     let sep_text = format!("{left_dash}{label}{right_dash}");
     Line::from(Span::styled(
         sep_text,
-        Style::default()
-            .fg(WARN)
-            .add_modifier(Modifier::BOLD),
+        Style::default().fg(WARN).add_modifier(Modifier::BOLD),
     ))
 }
 
@@ -897,10 +895,7 @@ fn load_detail_lines(job: &JobItem, inner_width: u16, wrap: bool) -> Vec<Line<'s
     // (scroll_detail_top) jumps straight to the untruncated values.
     lines.push(detail_header_sep(inner_width, " Job "));
     lines.push(Line::from(vec![
-        Span::styled(
-            "ID: ",
-            Style::default().add_modifier(Modifier::BOLD),
-        ),
+        Span::styled("ID: ", Style::default().add_modifier(Modifier::BOLD)),
         Span::raw(job.id.clone()),
     ]));
     lines.push(Line::from(Span::styled(
@@ -931,10 +926,13 @@ fn load_detail_lines(job: &JobItem, inner_width: u16, wrap: bool) -> Vec<Line<'s
                 for entry in entries {
                     // pane_width 0 tells render_trace_entry not to truncate;
                     // wrap mode reflows the whole line instead.
-                    let rendered =
-                        render_trace_entry(&entry, if wrap { 0 } else { inner_width });
+                    let rendered = render_trace_entry(&entry, if wrap { 0 } else { inner_width });
                     if wrap {
-                        lines.extend(wrap_styled_line(&rendered, inner_width as usize, TRACE_WRAP_INDENT));
+                        lines.extend(wrap_styled_line(
+                            &rendered,
+                            inner_width as usize,
+                            TRACE_WRAP_INDENT,
+                        ));
                     } else {
                         lines.push(rendered);
                     }
@@ -1278,76 +1276,191 @@ impl App {
         self.refresh();
     }
 
-    pub fn request_clear(&mut self) {
-        if self.all_workspaces {
-            self.last_error = Some(
-                "Cannot clear in all-workspace view (press 'a' to switch to single workspace)"
-                    .to_string(),
-            );
-            return;
+    /// Collects unique workspace paths and any workspace labels lacking a path.
+    ///
+    /// The all-workspace view aggregates jobs across multiple repositories, where
+    /// each job record may identify its workspace path. We deduplicate paths so
+    /// companion operations run exactly once per repository, and collect labels of
+    /// workspaces missing a filesystem path because the companion CLI requires a
+    /// concrete directory target to resolve and mutate state.
+    pub fn collect_workspace_targets(&self) -> (Vec<String>, Vec<String>) {
+        let mut target_paths = Vec::new();
+        let mut skipped_workspaces = Vec::new();
+        for info in self.job_workspaces.values() {
+            if let Some(ref p) = info.path {
+                target_paths.push(p.clone());
+            } else {
+                skipped_workspaces.push(info.label.clone());
+            }
         }
+        target_paths.sort();
+        target_paths.dedup();
+        skipped_workspaces.sort();
+        skipped_workspaces.dedup();
+        (target_paths, skipped_workspaces)
+    }
 
-        let output = Command::new("node")
-            .arg(&self.companion_path)
-            .arg("clear")
-            .arg("--dry-run")
-            .arg("--json")
-            .output();
+    pub fn request_clear(&mut self) {
+        if !self.all_workspaces {
+            let output = Command::new("node")
+                .arg(&self.companion_path)
+                .arg("clear")
+                .arg("--dry-run")
+                .arg("--json")
+                .output();
 
-        let output = match output {
-            Ok(o) => o,
-            Err(e) => {
-                self.last_error = Some(format!("failed to execute node: {e}"));
+            let output = match output {
+                Ok(o) => o,
+                Err(e) => {
+                    self.last_error = Some(format!("failed to execute node: {e}"));
+                    return;
+                }
+            };
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                self.last_error = Some(format!("clear dry-run failed: {}", stderr.trim()));
                 return;
             }
-        };
 
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            self.last_error = Some(format!("clear dry-run failed: {}", stderr.trim()));
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            match serde_json::from_str::<ClearResult>(&stdout) {
+                Ok(res) => {
+                    self.input_mode = InputMode::ConfirmClear {
+                        count: res.cleared.len(),
+                    };
+                }
+                Err(e) => {
+                    self.last_error = Some(format!("invalid clear json: {e}"));
+                }
+            }
             return;
         }
 
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        #[derive(Deserialize)]
-        struct ClearResult {
-            #[serde(default)]
-            cleared: Vec<String>,
+        let (target_paths, skipped_workspaces) = self.collect_workspace_targets();
+        let mut total_cleared = 0;
+        let mut errors = Vec::new();
+
+        if !skipped_workspaces.is_empty() {
+            errors.push(format!(
+                "skipped workspace(s) without path (cannot be targeted): {}",
+                skipped_workspaces.join(", ")
+            ));
         }
 
-        match serde_json::from_str::<ClearResult>(&stdout) {
-            Ok(res) => {
-                self.input_mode = InputMode::ConfirmClear {
-                    count: res.cleared.len(),
-                };
-            }
-            Err(e) => {
-                self.last_error = Some(format!("invalid clear json: {e}"));
+        for path in target_paths {
+            let output = Command::new("node")
+                .arg(&self.companion_path)
+                .arg("clear")
+                .arg("--workspace")
+                .arg(&path)
+                .arg("--dry-run")
+                .arg("--json")
+                .output();
+
+            match output {
+                Ok(out) => {
+                    if !out.status.success() {
+                        let stderr = String::from_utf8_lossy(&out.stderr);
+                        errors.push(format!(
+                            "clear dry-run failed for {path}: {}",
+                            stderr.trim()
+                        ));
+                    } else {
+                        let stdout = String::from_utf8_lossy(&out.stdout);
+                        match serde_json::from_str::<ClearResult>(&stdout) {
+                            Ok(res) => {
+                                total_cleared += res.cleared.len();
+                            }
+                            Err(e) => {
+                                errors.push(format!("invalid clear json for {path}: {e}"));
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    errors.push(format!("failed to execute node for {path}: {e}"));
+                }
             }
         }
+
+        if errors.is_empty() {
+            self.last_error = None;
+        } else {
+            self.last_error = Some(errors.join("; "));
+        }
+
+        if total_cleared == 0 && !errors.is_empty() {
+            return;
+        }
+
+        self.input_mode = InputMode::ConfirmClear {
+            count: total_cleared,
+        };
     }
 
     pub fn execute_clear(&mut self) {
-        let output = Command::new("node")
-            .arg(&self.companion_path)
-            .arg("clear")
-            .arg("--json")
-            .output();
+        if !self.all_workspaces {
+            let output = Command::new("node")
+                .arg(&self.companion_path)
+                .arg("clear")
+                .arg("--json")
+                .output();
 
-        match output {
-            Ok(out) => {
-                if !out.status.success() {
-                    let stderr = String::from_utf8_lossy(&out.stderr);
-                    self.last_error = Some(format!("clear failed: {}", stderr.trim()));
-                } else {
-                    self.last_error = None;
+            match output {
+                Ok(out) => {
+                    if !out.status.success() {
+                        let stderr = String::from_utf8_lossy(&out.stderr);
+                        self.last_error = Some(format!("clear failed: {}", stderr.trim()));
+                    } else {
+                        self.last_error = None;
+                    }
+                }
+                Err(e) => {
+                    self.last_error = Some(format!("failed to execute node: {e}"));
                 }
             }
-            Err(e) => {
-                self.last_error = Some(format!("failed to execute node: {e}"));
+            self.refresh();
+            return;
+        }
+
+        let (target_paths, skipped_workspaces) = self.collect_workspace_targets();
+        let mut errors = Vec::new();
+
+        if !skipped_workspaces.is_empty() {
+            errors.push(format!(
+                "skipped workspace(s) without path (cannot be targeted): {}",
+                skipped_workspaces.join(", ")
+            ));
+        }
+
+        for path in target_paths {
+            let output = Command::new("node")
+                .arg(&self.companion_path)
+                .arg("clear")
+                .arg("--workspace")
+                .arg(&path)
+                .arg("--json")
+                .output();
+
+            match output {
+                Ok(out) => {
+                    if !out.status.success() {
+                        let stderr = String::from_utf8_lossy(&out.stderr);
+                        errors.push(format!("clear failed for {path}: {}", stderr.trim()));
+                    }
+                }
+                Err(e) => {
+                    errors.push(format!("failed to execute node for {path}: {e}"));
+                }
             }
         }
+
         self.refresh();
+
+        if !errors.is_empty() {
+            self.last_error = Some(errors.join("; "));
+        }
     }
 
     pub fn move_down(&mut self, amount: usize) {
@@ -1503,9 +1616,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
         ));
         header_spans.push(Span::styled(
             "ALL WORKSPACES",
-            Style::default()
-                .fg(SPECIAL)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(SPECIAL).add_modifier(Modifier::BOLD),
         ));
     } else {
         header_spans.push(Span::styled(
@@ -1521,16 +1632,12 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
     header_spans.push(Span::raw("  |  "));
     header_spans.push(Span::styled(
         format!("{} running", app.running_count),
-        Style::default()
-            .fg(WARN)
-            .add_modifier(Modifier::BOLD),
+        Style::default().fg(WARN).add_modifier(Modifier::BOLD),
     ));
     header_spans.push(Span::raw(", "));
     header_spans.push(Span::styled(
         format!("{} recent", app.recent_count),
-        Style::default()
-            .fg(OK)
-            .add_modifier(Modifier::BOLD),
+        Style::default().fg(OK).add_modifier(Modifier::BOLD),
     ));
     header_spans.push(Span::raw(format!(" ({} total)", app.all_jobs.len())));
 
@@ -1546,9 +1653,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
         ));
         header_spans.push(Span::styled(
             format!(" ({}/{} matches)", app.jobs.len(), app.all_jobs.len()),
-            Style::default()
-                .fg(WARN)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(WARN).add_modifier(Modifier::BOLD),
         ));
     }
 
@@ -1667,12 +1772,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
                 "> ",
             )
         } else {
-            (
-                Style::default()
-                    .bg(ROW_SEL_BG)
-                    .fg(FG),
-                "  ",
-            )
+            (Style::default().bg(ROW_SEL_BG).fg(FG), "  ")
         };
 
         let table = Table::new(rows, widths)
@@ -1796,22 +1896,15 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
             let filter_spans = vec![
                 Span::styled(
                     " / ",
-                    Style::default()
-                        .fg(WARN)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(WARN).add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     &app.filter_query,
-                    Style::default()
-                        .fg(FG)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(FG).add_modifier(Modifier::BOLD),
                 ),
                 Span::styled("█", Style::default().fg(WARN)),
                 Span::raw("  "),
-                Span::styled(
-                    "(Enter: apply, Esc: cancel)",
-                    Style::default().fg(DIM),
-                ),
+                Span::styled("(Enter: apply, Esc: cancel)", Style::default().fg(DIM)),
             ];
             let filter_paragraph =
                 Paragraph::new(Line::from(filter_spans)).style(Style::default().bg(BG_DARK));
@@ -1825,9 +1918,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
                 ),
                 Span::styled(
                     job_id.as_str(),
-                    Style::default()
-                        .fg(FG)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(FG).add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     "? [y to confirm, any other key to abort] ",
@@ -1857,44 +1948,32 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
             let line1 = Line::from(vec![
                 Span::styled(
                     " Tab",
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": focus  "),
                 Span::styled(
                     "j/k",
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": nav/scroll  "),
                 Span::styled(
                     "g/G",
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": top/bottom  "),
                 Span::styled(
                     "^d/^u",
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": half-page  "),
                 Span::styled(
                     "r",
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": refresh  "),
                 Span::styled(
                     "q",
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": quit"),
             ]);
@@ -1902,37 +1981,27 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
             let line2 = Line::from(vec![
                 Span::styled(
                     " /",
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": filter  "),
                 Span::styled(
                     "c",
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": cancel  "),
                 Span::styled(
                     "X",
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": clear  "),
                 Span::styled(
                     "a",
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(": toggle all ws  "),
                 Span::styled(
                     "w",
-                    Style::default()
-                        .fg(ACCENT)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(if app.detail_wrap {
                     ": wrap on"
@@ -1942,8 +2011,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
             ]);
 
             let footer_paragraph = if footer_height >= 2 {
-                Paragraph::new(vec![line1, line2])
-                    .style(Style::default().bg(DIM).fg(FG))
+                Paragraph::new(vec![line1, line2]).style(Style::default().bg(DIM).fg(FG))
             } else {
                 Paragraph::new(line1).style(Style::default().bg(DIM).fg(FG))
             };
@@ -2943,7 +3011,13 @@ mod tests {
         let s5: String = lines[5].spans.iter().map(|s| s.content.as_ref()).collect();
         assert_eq!(s5, "line 3");
 
-        let last: String = lines.last().unwrap().spans.iter().map(|s| s.content.as_ref()).collect();
+        let last: String = lines
+            .last()
+            .unwrap()
+            .spans
+            .iter()
+            .map(|s| s.content.as_ref())
+            .collect();
         assert_eq!(last, "No trace log available for this job.");
 
         // Also test empty request fallback text
@@ -2952,8 +3026,298 @@ mod tests {
             ..job_with_req
         };
         let lines_empty = load_detail_lines(&job_empty_req, 80, true);
-        let s3_empty: String = lines_empty[3].spans.iter().map(|s| s.content.as_ref()).collect();
+        let s3_empty: String = lines_empty[3]
+            .spans
+            .iter()
+            .map(|s| s.content.as_ref())
+            .collect();
         assert_eq!(s3_empty, "(no request text)");
     }
-}
 
+    #[test]
+    fn test_all_workspaces_collect_workspace_targets_dedup_and_missing_path() {
+        let mut job_workspaces = HashMap::new();
+        job_workspaces.insert(
+            "job1".to_string(),
+            WorkspaceInfo {
+                label: "repo1".to_string(),
+                path: Some("/home/user/repo1".to_string()),
+            },
+        );
+        job_workspaces.insert(
+            "job2".to_string(),
+            WorkspaceInfo {
+                label: "repo1".to_string(),
+                path: Some("/home/user/repo1".to_string()),
+            },
+        );
+        job_workspaces.insert(
+            "job3".to_string(),
+            WorkspaceInfo {
+                label: "repo2".to_string(),
+                path: Some("/home/user/repo2".to_string()),
+            },
+        );
+        job_workspaces.insert(
+            "job-no-path-1".to_string(),
+            WorkspaceInfo {
+                label: "orphan-a".to_string(),
+                path: None,
+            },
+        );
+        job_workspaces.insert(
+            "job-no-path-2".to_string(),
+            WorkspaceInfo {
+                label: "orphan-a".to_string(),
+                path: None,
+            },
+        );
+        job_workspaces.insert(
+            "job-no-path-3".to_string(),
+            WorkspaceInfo {
+                label: "orphan-b".to_string(),
+                path: None,
+            },
+        );
+
+        let app = App {
+            all_workspaces: true,
+            job_workspaces,
+            ..Default::default()
+        };
+
+        let (targets, skipped) = app.collect_workspace_targets();
+        assert_eq!(targets, vec!["/home/user/repo1", "/home/user/repo2"]);
+        assert_eq!(skipped, vec!["orphan-a", "orphan-b"]);
+    }
+
+    #[test]
+    fn test_all_workspaces_request_clear_sums_counts_and_skips_missing_path() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("oco-tui-clear-sum-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let script_path = temp_dir.join("mock_companion.js");
+
+        let script = r#"
+const args = process.argv.slice(2);
+const wsIdx = args.indexOf("--workspace");
+const ws = wsIdx >= 0 ? args[wsIdx + 1] : "";
+if (args.includes("--json")) {
+    if (ws === "/repo1") {
+        console.log(JSON.stringify({ cleared: ["job1", "job2"] }));
+    } else if (ws === "/repo2") {
+        console.log(JSON.stringify({ cleared: ["job3"] }));
+    } else {
+        console.log(JSON.stringify({ cleared: [] }));
+    }
+}
+"#;
+        std::fs::write(&script_path, script).unwrap();
+
+        let mut job_workspaces = HashMap::new();
+        job_workspaces.insert(
+            "job1".to_string(),
+            WorkspaceInfo {
+                label: "repo1".to_string(),
+                path: Some("/repo1".to_string()),
+            },
+        );
+        job_workspaces.insert(
+            "job2".to_string(),
+            WorkspaceInfo {
+                label: "repo1".to_string(),
+                path: Some("/repo1".to_string()),
+            },
+        );
+        job_workspaces.insert(
+            "job3".to_string(),
+            WorkspaceInfo {
+                label: "repo2".to_string(),
+                path: Some("/repo2".to_string()),
+            },
+        );
+        job_workspaces.insert(
+            "job-orphan".to_string(),
+            WorkspaceInfo {
+                label: "hash-no-path".to_string(),
+                path: None,
+            },
+        );
+
+        let mut app = App {
+            all_workspaces: true,
+            companion_path: script_path,
+            job_workspaces,
+            ..Default::default()
+        };
+
+        app.request_clear();
+
+        // Count must be sum of cleared jobs from repo1 (2) + repo2 (1) = 3
+        assert_eq!(app.input_mode, InputMode::ConfirmClear { count: 3 });
+
+        // Missing path must be reported in error line
+        assert!(app.last_error.is_some());
+        let err = app.last_error.as_ref().unwrap();
+        assert!(err.contains("hash-no-path"));
+        assert!(err.contains("cannot be targeted"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_all_workspaces_execute_clear_tolerates_per_workspace_failure() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("oco-tui-clear-fail-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let script_path = temp_dir.join("mock_companion.js");
+
+        let script = r#"
+const args = process.argv.slice(2);
+const wsIdx = args.indexOf("--workspace");
+const ws = wsIdx >= 0 ? args[wsIdx + 1] : "";
+if (ws === "/fail") {
+    process.stderr.write("simulated clear failure\n");
+    process.exit(1);
+}
+console.log(JSON.stringify({ cleared: [] }));
+"#;
+        std::fs::write(&script_path, script).unwrap();
+
+        let mut job_workspaces = HashMap::new();
+        job_workspaces.insert(
+            "job-fail".to_string(),
+            WorkspaceInfo {
+                label: "fail-ws".to_string(),
+                path: Some("/fail".to_string()),
+            },
+        );
+        job_workspaces.insert(
+            "job-ok".to_string(),
+            WorkspaceInfo {
+                label: "ok-ws".to_string(),
+                path: Some("/ok".to_string()),
+            },
+        );
+        job_workspaces.insert(
+            "job-orphan".to_string(),
+            WorkspaceInfo {
+                label: "orphan-ws".to_string(),
+                path: None,
+            },
+        );
+
+        let mut app = App {
+            all_workspaces: true,
+            companion_path: script_path,
+            job_workspaces,
+            ..Default::default()
+        };
+
+        app.execute_clear();
+
+        // Failure on /fail should not abort execution, and errors should report both
+        // the failed workspace and the skipped missing-path workspace
+        assert!(app.last_error.is_some());
+        let err = app.last_error.as_ref().unwrap();
+        assert!(err.contains("clear failed for /fail"));
+        assert!(err.contains("simulated clear failure"));
+        assert!(err.contains("orphan-ws"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_all_workspaces_request_clear_all_fail_does_not_open_dialog() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("oco-tui-clear-all-fail-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let script_path = temp_dir.join("mock_companion.js");
+
+        let script = r#"
+const args = process.argv.slice(2);
+process.stderr.write("simulated dry-run failure\n");
+process.exit(1);
+"#;
+        std::fs::write(&script_path, script).unwrap();
+
+        let mut job_workspaces = HashMap::new();
+        job_workspaces.insert(
+            "job1".to_string(),
+            WorkspaceInfo {
+                label: "repo1".to_string(),
+                path: Some("/repo1".to_string()),
+            },
+        );
+        job_workspaces.insert(
+            "job2".to_string(),
+            WorkspaceInfo {
+                label: "repo2".to_string(),
+                path: Some("/repo2".to_string()),
+            },
+        );
+
+        let mut app = App {
+            all_workspaces: true,
+            companion_path: script_path,
+            job_workspaces,
+            input_mode: InputMode::Normal,
+            ..Default::default()
+        };
+
+        app.request_clear();
+
+        // Must NOT open confirm dialog
+        assert_eq!(app.input_mode, InputMode::Normal);
+
+        // Error must be recorded
+        assert!(app.last_error.is_some());
+        let err = app.last_error.as_ref().unwrap();
+        assert!(err.contains("clear dry-run failed for /repo1"));
+        assert!(err.contains("clear dry-run failed for /repo2"));
+        assert!(err.contains("simulated dry-run failure"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_all_workspaces_request_clear_clean_zero_jobs_opens_dialog() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("oco-tui-clear-clean-zero-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let script_path = temp_dir.join("mock_companion.js");
+
+        let script = r#"
+console.log(JSON.stringify({ cleared: [] }));
+"#;
+        std::fs::write(&script_path, script).unwrap();
+
+        let mut job_workspaces = HashMap::new();
+        job_workspaces.insert(
+            "job1".to_string(),
+            WorkspaceInfo {
+                label: "repo1".to_string(),
+                path: Some("/repo1".to_string()),
+            },
+        );
+
+        let mut app = App {
+            all_workspaces: true,
+            companion_path: script_path,
+            job_workspaces,
+            input_mode: InputMode::Normal,
+            ..Default::default()
+        };
+
+        app.request_clear();
+
+        assert_eq!(app.input_mode, InputMode::ConfirmClear { count: 0 });
+        assert_eq!(app.last_error, None);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+}
