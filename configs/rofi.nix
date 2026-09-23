@@ -87,27 +87,28 @@ in
       pkgs.rofi-calc
       pkgs.rofi-emoji
     ];
-    terminal = "${pkgs.wezterm}/bin/wezterm";
-    modes = [
-      "drun"
-      "run"
-      "window"
-      "filebrowser"
-      "calc"
-      "emoji"
-      {
-        name = "websearch";
-        # By name, not by store path: runner.rasi has to name this mode too,
-        # and a static .rasi cannot hold a store path. Resolving through PATH
-        # lets both spell it the same way.
-        path = "rofi-websearch";
-      }
-      {
-        name = "glyph";
-        path = "rofi-glyph";
-      }
-    ];
-    extraConfig = {
+
+    # One flat attrset written straight into the rasi `configuration` block.
+    # home-manager folded the old terminal/modes/extraConfig options into this,
+    # and a script mode is now the native "name:path" string rather than a
+    # { name; path; } submodule.
+    settings = {
+      terminal = "${pkgs.wezterm}/bin/wezterm";
+
+      # Script modes are named, not given a store path: runner.rasi has to name
+      # them too, and a static .rasi cannot hold a store path. Resolving through
+      # PATH lets both spell it the same way.
+      modes = [
+        "drun"
+        "run"
+        "window"
+        "filebrowser"
+        "calc"
+        "emoji"
+        "websearch:rofi-websearch"
+        "glyph:rofi-glyph"
+      ];
+
       # Themes come from -theme on the command line (see configs/theming/
       # niri.nix), because the launcher and the runner use different ones.
       show-icons = true;

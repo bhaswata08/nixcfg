@@ -16,6 +16,17 @@
     # clipboard, Ctrl+Alt+Delete for the session menu) silently stops working
     # until the next relog. The unit also carries X-Restart-Triggers on
     # settings.json and user-templates.toml, so config edits take effect too.
+    #
+    # This emits a deprecation warning on every evaluation. Ignore it. The
+    # warning is specific to the legacy-v4 branch this input is pinned to, and
+    # the docs URL it cites 404s. Upstream's current home module (noctalia on
+    # main) still ships systemd.user.services.noctalia with the same shape and
+    # carries no deprecation notice at all, so the warning marks the branch
+    # being wound down, not the option being wrong. Spawning from niri instead
+    # would silence it at the cost of reintroducing the ipc breakage above.
+    # The real fix is moving off legacy-v4, which is a rename to
+    # programs.noctalia, a JSON-to-TOML config conversion and a recheck of the
+    # SessionMenu patch below -- not a lint cleanup.
     systemd.enable = true;
 
     # The session menu's large buttons hardcode an opaque `Color.mSurface`, and
