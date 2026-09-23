@@ -21,12 +21,6 @@
 
 # Delegating work to other models
 
-**Delegating is the default. Doing the work yourself is the exception you have
-to justify.** When a request needs code read, explained, traced, changed, or
-tested, your first move is to dispatch a seat, not to open an editor. If you
-find yourself writing an `Edit`, a `Write`, or a `python3 - <<EOF` heredoc
-against a source file, stop: that work belonged to `coder`.
-
 Three seats run on models other than yours, configured in
 `~/.config/opencode/agent/`:
 
@@ -34,54 +28,21 @@ Three seats run on models other than yours, configured in
 - `reviewer` reviews a diff and reports findings. It cannot edit.
 - `adversary` reviews a plan or design and reports holes. It cannot edit.
 
-Reach all three through the `opencode-rescue` subagent, which forwards to the
-opencode companion CLI. It IS a normal subagent - call the `Agent` tool with
-`subagent_type: "opencode:opencode-rescue"` and put the request in the prompt.
-Name the seat in the prompt when it is not `coder`, which is the default.
-
-Each seat has a second model that takes over when the first cannot be reached.
-That happens inside the plugin, so you do not arrange it. The exception is
-`reviewer`: its fallback is a Claude Code subagent on Sonnet, which only you can
-start, so a job that fails with a `handoff` marker is asking you to run that
-review yourself.
-
-Two transports run those seats. `opencode` is the default and reaches opencode's
-own models plus OpenRouter against a paid key. `agy` drives the antigravity CLI
-on the Google account the Jio subscription pays for. Pass `--backend agy` in
-the rescue prompt to pick it, and the wrapper forwards the flag to `task`.
-Leaving it off keeps the default.
-`task` accepts `--agent`, `--backend`, `--background`, `--fresh`, `--model`,
-`--resume-last`, `--task-file`, `--wait`, `--write`, and rejects anything else.
-
-opencode removed the free muse spark contributor tier, so
-`opencode/muse-spark-1.3-contributor-free` no longer answers: a prompt to it
-hangs rather than erroring. `coder` now reaches the same model through
-OpenRouter as `meta/muse-spark-1.3-contributor`, which bills the wallet at
-$0.10 and $0.20 per million with cache reads at $0.002. Cache hits run near
-79%, so the 21% that misses is most of the bill.
-
-That makes `--backend agy` the flag you pass to avoid spending rather than to
-escape a rate limit, which is the reverse of what it used to mean. The two
-backends draw separate quotas, so one being spent says nothing about the other.
-agy's quota is per Google account with a weekly and a five-hour window, and the
-five-hour one binds first. Its Gemini
-models and its Claude and GPT models sit in separate buckets, so the seat default
-of `gemini-3.8-flash-high` can have room while the Claude group reads 0%. Check
-the quota panel in the agy TUI before leaning on it.
+Reach all three through the `Agent` tool with
+`subagent_type: "opencode:opencode-rescue"` and name the seat in the prompt
+(`coder` is the default). Backends, quotas, costs, and fallback behavior live
+in the `delegation` skill. Load it when a dispatch is actually being made or
+when backend, quota, cost, or model selection for the seats comes up.
 
 Routing:
 
-- Send `coder` anything that needs to understand the repo: reproducing a bug,
+- Do not dispatch when the whole job is reading a file whose path is already
+  known, running one command whose output answers the question, or a one-line
+  edit to a file already open. Dispatch when the job needs the repo searched,
+  a failure traced, or more than one file understood.
+- Send `coder` anything that needs the repo understood: reproducing a bug,
   tracing a failure, working out why a test breaks, reading code to explain how
-  it works, triaging issues, and every edit that follows from those. The seat
-  does not have to produce an edit to be the right one, and "it is only reading"
-  is not a reason to keep the work on your own model.
-- Reading a file whose path you already have is the exception. Use `Read`. In a
-  week of job records, 81 of 134 coder jobs finished inside 20 trace lines and
-  many were a single `Read` of a known path, each one paying for a session, a
-  model connection and a slice of quota to hand back something you could have
-  opened yourself. Understanding a repo is not the same as opening one named
-  file, and the rule above means the first.
+  it works, triaging issues, and every edit that follows from those.
 - Use `Explore` and `general-purpose` only to locate things. Which file defines
   this, where is it called, does this pattern appear anywhere. The answer is a
   path or a short list. As soon as the answer is an explanation or an edit, it
@@ -95,52 +56,19 @@ Routing:
   cannot check cheaply afterwards.
 - Keep for yourself only: one or two lines you already have open, a command you
   are running to answer a question, a commit, and the orchestration itself.
-  Length alone does not qualify a change - a forty-line edit is still `coder`'s
-  work. The test is whether you would have to read anything to make it.
+  Length alone does not qualify a change. A forty-line edit is still `coder`'s
+  work when you would have to read anything to make it.
 
 Do not announce a dispatch you have not made. "Handing it to a seat" followed by
 your own edit is worse than either choice made honestly.
 
-On fanning out: the companion refuses a coding job once two are already in
-flight, counting across every workspace on the machine, and tells you which
-jobs hold the slots. Treat that refusal as the answer, not as something to work
-around; `OPENCODE_MAX_CONCURRENT` exists for a run that genuinely needs more,
-not for getting past the cap.
-
-The cap is machine-wide because you cannot see the whole picture. Roughly half
-the overlap in a week of records came from a second Claude Code session working
-the same repo, which no rule addressed to you alone can catch. It is also
-cheaper than it looks to respect: a six-way fan-out drained a five-hour agy
-window in thirty-five minutes and left every job for the next sixteen hours
-with nothing to run on.
-
-Both backends share that one counter, even though agy enforces no concurrency
-limit of its own. That is deliberate. The fan-out above ran on agy, and an
-unmetered backend on a quota that refills every five hours is the case the cap
-was written for.
-
-Raising the cap for one dispatch: the limit is not a hard stop. The companion
-reads `OPENCODE_MAX_CONCURRENT` once, at the start of each command it runs, so
-setting it on a single `task` invocation raises the cap for that admission
-check and for nothing else. Put the assignment on its own line at the top of
-the rescue prompt:
-
-    OPENCODE_MAX_CONCURRENT=4
-    <the rest of the task text>
-
-The rescue subagent strips that line and prefixes its `task` command with it.
-Nothing persists and there is nothing to restore: the next dispatch, from this
-session or any other, is back to 2. Never set the variable in your own shell,
-in settings, or in the exported environment. That raises it for every job on
-the machine, including the sessions you cannot see, which is the overlap the
-cap exists to catch.
-
-Pick the number the way you would decide to spend the quota, because that is
-what you are deciding. Tell the user you raised it and why. The refusal is
-still the default answer.
-
-`reviewer` and `adversary` cannot fan out at all, per the concurrency limit
-below.
+Two coding jobs may run at once, machine-wide. The companion refuses a third
+and names the jobs holding the slots. Treat that refusal as the answer. The
+cap counts every workspace on the machine, including sessions you cannot see,
+because roughly half the overlap in a week of records came from a second
+Claude Code session working the same repo. `OPENCODE_MAX_CONCURRENT` exists
+for a run that genuinely needs more, not for getting past the cap. Raising it
+for one dispatch is covered in the `delegation` skill.
 
 `reviewer` and `adversary` both spend the same synthetic.new key, and that plan
 allows one agent at a time. Never run them together, and do not run either

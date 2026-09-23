@@ -54,10 +54,13 @@ in
   # ~/.claude is not an XDG directory, so this uses home.file rather than the
   # xdg.configFile pattern used elsewhere in this repo.
 
-  # Global agent instructions. The file lives at ~/AGENTS.md so non-Claude
-  # agents pick it up too, and ~/.claude/CLAUDE.md points at the same content.
+  # Global agent instructions. One copy lives at ~/AGENTS.md, which is what
+  # both Claude Code profiles read: Claude Code walks up from the working
+  # directory to $HOME collecting AGENTS.md and CLAUDE.md without deduping
+  # identical content, so a second copy at ~/.claude/CLAUDE.md would load this
+  # file and the soul.md it imports twice every session. ~/AGENTS.md covers
+  # every directory under /home/bhaswata, and non-Claude agents pick it up too.
   home.file."AGENTS.md".source = ./claude/AGENTS.md;
-  home.file.".claude/CLAUDE.md".source = ./claude/AGENTS.md;
 
   # Default prose style, inlined by AGENTS.md via Claude Code's @path import.
   home.file.".claude/soul.md".source = ./claude/soul.md;
@@ -92,9 +95,9 @@ in
   # Second Claude account. `ccp` (configs/nushell/aliases.nu) points
   # CLAUDE_CONFIG_DIR here, which gives that account its own credentials while
   # sharing everything else with ~/.claude (see claudePersonalShared below).
-  # soul.md is not mirrored: AGENTS.md imports it as @~/.claude/soul.md, an
-  # absolute path both profiles read.
-  home.file.".claude-personal/CLAUDE.md".source = ./claude/AGENTS.md;
+  # Neither CLAUDE.md nor soul.md is mirrored here: ~/AGENTS.md already covers
+  # this profile's working directories, and AGENTS.md imports soul.md as
+  # @~/.claude/soul.md, an absolute path both profiles read.
   home.file.".claude-personal/skills" = {
     source = ./claude/skills;
     recursive = true;
