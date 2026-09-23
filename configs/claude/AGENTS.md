@@ -114,6 +114,31 @@ cheaper than it looks to respect: a six-way fan-out drained a five-hour agy
 window in thirty-five minutes and left every job for the next sixteen hours
 with nothing to run on.
 
+Both backends share that one counter, even though agy enforces no concurrency
+limit of its own. That is deliberate. The fan-out above ran on agy, and an
+unmetered backend on a quota that refills every five hours is the case the cap
+was written for.
+
+Raising the cap for one dispatch: the limit is not a hard stop. The companion
+reads `OPENCODE_MAX_CONCURRENT` once, at the start of each command it runs, so
+setting it on a single `task` invocation raises the cap for that admission
+check and for nothing else. Put the assignment on its own line at the top of
+the rescue prompt:
+
+    OPENCODE_MAX_CONCURRENT=4
+    <the rest of the task text>
+
+The rescue subagent strips that line and prefixes its `task` command with it.
+Nothing persists and there is nothing to restore: the next dispatch, from this
+session or any other, is back to 2. Never set the variable in your own shell,
+in settings, or in the exported environment. That raises it for every job on
+the machine, including the sessions you cannot see, which is the overlap the
+cap exists to catch.
+
+Pick the number the way you would decide to spend the quota, because that is
+what you are deciding. Tell the user you raised it and why. The refusal is
+still the default answer.
+
 `reviewer` and `adversary` cannot fan out at all, per the concurrency limit
 below.
 
