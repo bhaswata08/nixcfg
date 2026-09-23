@@ -9,7 +9,6 @@
     libreoffice
     drawing
     obsidian
-    koodo-reader
     thunderbird
   ];
 
