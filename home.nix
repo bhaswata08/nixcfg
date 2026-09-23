@@ -16,6 +16,7 @@
     ./configs/nvim.nix
     ./configs/obsidian.nix
     ./configs/herdr.nix
+    ./configs/kokoro-server.nix
     ./configs/wezterm.nix
     ./configs/programs.nix
     ./configs/rofi.nix
