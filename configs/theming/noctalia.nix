@@ -1,5 +1,7 @@
 {
+  config,
   inputs,
+  lib,
   pkgs,
   ...
 }:
@@ -17,17 +19,12 @@
     # until the next relog. The unit also carries X-Restart-Triggers on
     # settings.json and user-templates.toml, so config edits take effect too.
     #
-    # This emits a deprecation warning on every evaluation. Ignore it. The
-    # warning is specific to the legacy-v4 branch this input is pinned to, and
-    # the docs URL it cites 404s. Upstream's current home module (noctalia on
-    # main) still ships systemd.user.services.noctalia with the same shape and
-    # carries no deprecation notice at all, so the warning marks the branch
-    # being wound down, not the option being wrong. Spawning from niri instead
-    # would silence it at the cost of reintroducing the ipc breakage above.
-    # The real fix is moving off legacy-v4, which is a rename to
-    # programs.noctalia, a JSON-to-TOML config conversion and a recheck of the
-    # SessionMenu patch below -- not a lint cleanup.
-    systemd.enable = true;
+    # The unit is defined below rather than through `systemd.enable`, which
+    # warns on every evaluation. That warning belongs to the legacy-v4 branch
+    # this input is pinned to: its docs link 404s, and upstream's current
+    # module still ships the same unit with no deprecation at all. Since
+    # legacy-v4 is frozen, declaring the unit here cannot drift from it.
+    systemd.enable = false;
 
     # The session menu's large buttons hardcode an opaque `Color.mSurface`, and
     # no setting exposes it, so the cards sit as solid blocks over the
@@ -60,5 +57,34 @@
   xdg.configFile."noctalia/plugins/timeblock" = {
     source = ./noctalia-plugins/timeblock;
     recursive = true;
+  };
+
+  # The unit the module's `systemd.enable` would have produced, reproduced
+  # here so the deprecation warning stays quiet. Keep this in step with
+  # nix/home-module.nix in the noctalia input if the pin ever moves off the
+  # frozen legacy-v4 branch, at which point the option itself is the better
+  # home for this again.
+  #
+  # X-Restart-Triggers is what makes a rebuild pick up config edits: the two
+  # store paths change whenever settings.json or user-templates.toml does, so
+  # home-manager restarts the shell instead of leaving a stale one running.
+  systemd.user.services.noctalia-shell = {
+    Unit = {
+      Description = "Noctalia Shell - Wayland desktop shell";
+      Documentation = "https://docs.noctalia.dev";
+      PartOf = [ config.wayland.systemd.target ];
+      After = [ config.wayland.systemd.target ];
+      X-Restart-Triggers = [
+        "${config.xdg.configFile."noctalia/settings.json".source}"
+        "${config.xdg.configFile."noctalia/user-templates.toml".source}"
+      ];
+    };
+
+    Service = {
+      ExecStart = lib.getExe config.programs.noctalia-shell.package;
+      Restart = "on-failure";
+    };
+
+    Install.WantedBy = [ config.wayland.systemd.target ];
   };
 }
