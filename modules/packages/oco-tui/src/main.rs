@@ -225,7 +225,13 @@ pub struct WorkspaceInfo {
 pub enum InputMode {
     Normal,
     Filter,
-    ConfirmCancel { job_id: String },
+    ConfirmCancel {
+        job_id: String,
+        /// Workspace to pass to the companion, when the job belongs to one other
+        /// than the current root. None means the job is in the current root and
+        /// the companion resolves it from the working directory as before.
+        workspace: Option<String>,
+    },
     ConfirmClear { count: usize },
 }
 
@@ -1218,6 +1224,22 @@ impl Default for App {
     }
 }
 
+/// Build the companion argument list for cancelling one job.
+///
+/// `--workspace` is passed only when the job lives outside the current root:
+/// the companion otherwise resolves the workspace from its working directory,
+/// which is the right answer for a job in the current repository and the wrong
+/// one for every job listed in the all-workspaces view.
+fn cancel_command_args(job_id: &str, workspace: Option<&str>) -> Vec<String> {
+    let mut args = vec!["cancel".to_string()];
+    if let Some(ws) = workspace {
+        args.push("--workspace".to_string());
+        args.push(ws.to_string());
+    }
+    args.push(job_id.to_string());
+    args
+}
+
 impl App {
     pub fn new(companion_path: PathBuf) -> Self {
         let mut app = Self {
@@ -1492,35 +1514,45 @@ impl App {
             None => return,
         };
 
-        if self.all_workspaces {
-            if let Some(info) = self.job_workspaces.get(&job.id) {
-                let is_current = match &info.path {
-                    Some(p) => p == &self.workspace_root,
-                    None => false,
-                };
-                if !is_current {
-                    self.last_error = Some(format!(
-                        "Cannot cancel: job belongs to another workspace ({})",
-                        info.label
-                    ));
-                    return;
-                }
-            }
-        }
-
         if job.status_category != StatusCategory::Active {
             self.last_error = Some(format!("Job {} is not active ({})", job.id, job.status));
             return;
         }
 
-        self.input_mode = InputMode::ConfirmCancel { job_id: job.id };
+        // In the all-workspaces view the selected job usually belongs to some
+        // other repository. The companion resolves the workspace from its
+        // working directory, so cancelling such a job used to be refused
+        // outright; instead, name the job workspace on the command line.
+        let mut workspace = None;
+        if self.all_workspaces {
+            if let Some(info) = self.job_workspaces.get(&job.id) {
+                match &info.path {
+                    Some(p) if p != &self.workspace_root => workspace = Some(p.clone()),
+                    Some(_) => {}
+                    None => {
+                        // No recorded path, so there is nothing to point the
+                        // companion at. Refusing beats cancelling whichever job
+                        // the current directory happens to match.
+                        self.last_error = Some(format!(
+                            "Cannot cancel: no workspace path recorded for this job ({})",
+                            info.label
+                        ));
+                        return;
+                    }
+                }
+            }
+        }
+
+        self.input_mode = InputMode::ConfirmCancel {
+            job_id: job.id,
+            workspace,
+        };
     }
 
-    pub fn execute_cancel(&mut self, job_id: &str) {
+    pub fn execute_cancel(&mut self, job_id: &str, workspace: Option<&str>) {
         let output = Command::new("node")
             .arg(&self.companion_path)
-            .arg("cancel")
-            .arg(job_id)
+            .args(cancel_command_args(job_id, workspace))
             .output();
         match output {
             Ok(out) => {
@@ -2181,7 +2213,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
                 Paragraph::new(Line::from(filter_spans)).style(Style::default().bg(BG_DARK));
             frame.render_widget(filter_paragraph, footer_area);
         }
-        InputMode::ConfirmCancel { job_id } => {
+        InputMode::ConfirmCancel { job_id, .. } => {
             let prompt_spans = vec![
                 Span::styled(
                     " Cancel job ",
@@ -2341,11 +2373,15 @@ fn run_app(
                             }
                             _ => {}
                         },
-                        InputMode::ConfirmCancel { ref job_id } => {
+                        InputMode::ConfirmCancel {
+                            ref job_id,
+                            ref workspace,
+                        } => {
                             let id = job_id.clone();
+                            let ws = workspace.clone();
                             app.input_mode = InputMode::Normal;
                             if key.code == KeyCode::Char('y') || key.code == KeyCode::Char('Y') {
-                                app.execute_cancel(&id);
+                                app.execute_cancel(&id, ws.as_deref());
                             }
                         }
                         InputMode::ConfirmClear { .. } => {
@@ -3069,6 +3105,116 @@ mod tests {
         }
     }
 
+    fn running_job(id: &str) -> JobItem {
+        JobItem {
+            id: id.to_string(),
+            status: "running".to_string(),
+            status_category: StatusCategory::from_status("running"),
+            type_agent: "task/coder".to_string(),
+            backend: "agy".to_string(),
+            elapsed: "1m".to_string(),
+            request_first_line: "work".to_string(),
+            request_full: "work".to_string(),
+            updated_at: None,
+            created_at: None,
+            log_file: None,
+        }
+    }
+
+    fn app_in_all_workspaces(job: JobItem, info: Option<WorkspaceInfo>) -> App {
+        let mut workspaces = HashMap::new();
+        if let Some(info) = info {
+            workspaces.insert(job.id.clone(), info);
+        }
+        let mut app = App {
+            jobs: vec![job],
+            all_workspaces: true,
+            workspace_root: "/home/me/here".to_string(),
+            job_workspaces: workspaces,
+            input_mode: InputMode::Normal,
+            ..Default::default()
+        };
+        app.table_state.select(Some(0));
+        app
+    }
+
+    #[test]
+    fn test_cancel_targets_a_job_in_another_workspace() {
+        let job = running_job("job-far");
+        let mut app = app_in_all_workspaces(
+            job,
+            Some(WorkspaceInfo {
+                label: "other/repo".to_string(),
+                path: Some("/home/me/other".to_string()),
+            }),
+        );
+
+        app.request_cancel_selected();
+
+        assert_eq!(app.last_error, None, "a foreign job must not be refused");
+        assert_eq!(
+            app.input_mode,
+            InputMode::ConfirmCancel {
+                job_id: "job-far".to_string(),
+                workspace: Some("/home/me/other".to_string()),
+            }
+        );
+    }
+
+    #[test]
+    fn test_cancel_in_own_workspace_carries_no_workspace_override() {
+        let job = running_job("job-here");
+        let mut app = app_in_all_workspaces(
+            job,
+            Some(WorkspaceInfo {
+                label: "here".to_string(),
+                path: Some("/home/me/here".to_string()),
+            }),
+        );
+
+        app.request_cancel_selected();
+
+        assert_eq!(
+            app.input_mode,
+            InputMode::ConfirmCancel {
+                job_id: "job-here".to_string(),
+                workspace: None,
+            }
+        );
+    }
+
+    #[test]
+    fn test_cancel_refused_when_the_workspace_path_is_unknown() {
+        let job = running_job("job-nowhere");
+        let mut app = app_in_all_workspaces(
+            job,
+            Some(WorkspaceInfo {
+                label: "tmp/opencode-test-abc".to_string(),
+                path: None,
+            }),
+        );
+
+        app.request_cancel_selected();
+
+        assert_eq!(app.input_mode, InputMode::Normal);
+        let err = app.last_error.as_ref().expect("an unlocatable job must be refused");
+        assert!(err.contains("workspace"), "error should name the problem: {err}");
+    }
+
+    #[test]
+    fn test_cancel_command_args_name_the_workspace() {
+        let args = cancel_command_args("job-far", Some("/home/me/other"));
+        assert_eq!(
+            args,
+            vec!["cancel", "--workspace", "/home/me/other", "job-far"]
+        );
+    }
+
+    #[test]
+    fn test_cancel_command_args_omit_the_flag_for_the_current_workspace() {
+        assert_eq!(cancel_command_args("job-here", None), vec!["cancel", "job-here"]);
+    }
+
     #[test]
     fn test_workspace_label_with_and_without_path() {
         // State file with workspace path
@@ -3146,6 +3292,7 @@ mod tests {
             let mut app = App {
                 input_mode: InputMode::ConfirmCancel {
                     job_id: "task-123".to_string(),
+                    workspace: None,
                 },
                 ..Default::default()
             };
