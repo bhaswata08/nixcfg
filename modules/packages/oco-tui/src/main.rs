@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{self, IsTerminal, Read, Seek, SeekFrom, Stdout};
 use std::path::{Path, PathBuf};
@@ -32,6 +32,11 @@ const SPECIAL: Color = Color::Rgb(187, 154, 247); // #bb9af7
 const ROW_SEL_BG: Color = Color::Rgb(47, 53, 73); // #2f3549
 
 pub const MAX_STATE_FILE_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
+
+/// Width of the DIRECTORY column. Wide enough for the common
+/// `~/<area>/<group>/<repo>` shape; anything longer is truncated from the left
+/// so the repository name stays visible.
+pub const DIRECTORY_COL_WIDTH: usize = 34;
 pub const COMPANION_DIR: &str = "/tmp/opencode-companion";
 
 /// Candidate state roots, in the same priority order the companion plugin's
@@ -274,6 +279,12 @@ pub struct JobItem {
 
 impl JobItem {
     pub fn from_raw(raw: RawJob) -> Self {
+        Self::from_raw_at(raw, now_ms())
+    }
+
+    /// `from_raw` with the current time injected, so tests over the derived
+    /// elapsed column do not depend on the wall clock.
+    pub fn from_raw_at(raw: RawJob, now_ms: u64) -> Self {
         let status_str = raw.status.unwrap_or_else(|| "unknown".to_string());
         let status_category = StatusCategory::from_status(&status_str);
 
@@ -293,13 +304,14 @@ impl JobItem {
 
         let backend = raw.backend.unwrap_or_else(|| "-".to_string());
 
-        let elapsed = if let Some(e) = raw.elapsed.filter(|s| !s.is_empty()) {
-            e
-        } else if let Some(ms) = raw.elapsed_ms {
-            format_duration_ms(ms)
-        } else {
-            "-".to_string()
-        };
+        let elapsed = derive_elapsed(
+            raw.elapsed.as_deref(),
+            raw.elapsed_ms,
+            raw.created_at.as_deref(),
+            raw.completed_at.as_deref(),
+            status_category == StatusCategory::Active,
+            now_ms,
+        );
 
         let request_full = raw
             .request
@@ -355,6 +367,22 @@ pub fn format_workspace_label(workspace_path: Option<&str>, dir_name: &str) -> S
         }
     }
     dir_name.to_string()
+}
+
+/// Returns true when `candidate` equals `current` or is a path-segment-aware
+/// descendant of `current` (i.e. starts with `current + "/"`).
+pub fn is_descendant_workspace(current: &str, candidate: &str) -> bool {
+    let current = current.trim();
+    let candidate = candidate.trim();
+    if current.is_empty() || candidate.is_empty() {
+        return false;
+    }
+    let current_clean = current.trim_end_matches('/');
+    let candidate_clean = candidate.trim_end_matches('/');
+    if current_clean.is_empty() {
+        return current == candidate || candidate.starts_with('/');
+    }
+    candidate_clean == current_clean || candidate.starts_with(&format!("{current_clean}/"))
 }
 
 pub fn load_all_workspace_jobs_from_dir(
@@ -426,6 +454,147 @@ fn format_duration_ms(ms: u64) -> String {
         let secs = total_sec % 60;
         format!("{mins}m {secs}s")
     }
+}
+
+/// Milliseconds since the Unix epoch for an RFC 3339 UTC timestamp, which is
+/// the only shape the companion writes ("2026-09-10T11:35:56.157Z").
+///
+/// Hand-rolled rather than pulling in a date crate: the companion always emits
+/// `toISOString()` output, so there is no zone offset, no leap second and no
+/// alternate separator to handle. Anything that does not match is rejected, and
+/// callers fall back to showing no elapsed time.
+pub fn parse_rfc3339_ms(ts: &str) -> Option<u64> {
+    let bytes = ts.as_bytes();
+    if bytes.len() < 20 || bytes[4] != b'-' || bytes[7] != b'-' || bytes[10] != b'T' {
+        return None;
+    }
+    if !ts.ends_with('Z') {
+        return None;
+    }
+
+    let num = |range: std::ops::Range<usize>| -> Option<i64> { ts.get(range)?.parse().ok() };
+    let year = num(0..4)?;
+    let month = num(5..7)?;
+    let day = num(8..10)?;
+    let hour = num(11..13)?;
+    let minute = num(14..16)?;
+    let second = num(17..19)?;
+
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+        return None;
+    }
+    if hour > 23 || minute > 59 || second > 60 {
+        return None;
+    }
+
+    // Fractional seconds are optional and of unspecified length, so take up to
+    // three digits and pad rather than assuming the usual millisecond form.
+    let millis = match ts.as_bytes().get(19) {
+        Some(b'.') => {
+            let frac: String = ts[20..ts.len() - 1]
+                .chars()
+                .take_while(|c| c.is_ascii_digit())
+                .take(3)
+                .collect();
+            if frac.is_empty() {
+                return None;
+            }
+            format!("{frac:0<3}").parse::<i64>().ok()?
+        }
+        Some(b'Z') => 0,
+        _ => return None,
+    };
+
+    // days_from_civil, from Howard Hinnant's chrono algorithms: civil date to a
+    // day count relative to 1970-01-01, correct for the proleptic Gregorian
+    // calendar without a lookup table.
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let mp = (month + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+
+    let total = ((days * 86_400 + hour * 3600 + minute * 60 + second) * 1000) + millis;
+    u64::try_from(total).ok()
+}
+
+/// Wall-clock milliseconds since the Unix epoch.
+pub fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+/// The ELAPSED cell for a job.
+///
+/// The companion does not write `elapsed` or `elapsedMs` onto job records, so
+/// reading those fields alone left the column showing "-" for every row. They
+/// are still preferred when present, because a future companion that computes
+/// the value itself knows more about a job than its two timestamps do. Failing
+/// that the value is derived: a finished job spans createdAt to completedAt,
+/// and a job still running spans createdAt to now, so its cell ticks upward
+/// between refreshes.
+pub fn derive_elapsed(
+    explicit: Option<&str>,
+    explicit_ms: Option<u64>,
+    created_at: Option<&str>,
+    completed_at: Option<&str>,
+    is_active: bool,
+    now_ms: u64,
+) -> String {
+    if let Some(e) = explicit.filter(|s| !s.is_empty()) {
+        return e.to_string();
+    }
+    if let Some(ms) = explicit_ms {
+        return format_duration_ms(ms);
+    }
+
+    let start = match created_at.and_then(parse_rfc3339_ms) {
+        Some(s) => s,
+        None => return "-".to_string(),
+    };
+
+    let end = match completed_at.and_then(parse_rfc3339_ms) {
+        Some(e) => e,
+        None if is_active => now_ms,
+        None => return "-".to_string(),
+    };
+
+    // A clock adjustment, or a record written by a machine whose clock is
+    // ahead, can put the end before the start. Showing "-" is more honest than
+    // a saturated "<1s" that reads like a real measurement.
+    if end < start {
+        return "-".to_string();
+    }
+    format_duration_ms(end - start)
+}
+
+/// Shorten a path for display, replacing $HOME with "~" and, when it still does
+/// not fit, dropping leading components rather than trailing ones. Paths are
+/// distinguished by their tails, so the usual right truncation hides exactly
+/// the part that tells two workspaces apart.
+pub fn abbreviate_path(path: &str, home: Option<&str>, max_width: usize) -> String {
+    let shortened = match home.filter(|h| !h.is_empty()) {
+        Some(h) if path == h => "~".to_string(),
+        Some(h) => match path.strip_prefix(&format!("{h}/")) {
+            Some(rest) => format!("~/{rest}"),
+            None => path.to_string(),
+        },
+        None => path.to_string(),
+    };
+
+    let chars: Vec<char> = shortened.chars().collect();
+    if chars.len() <= max_width {
+        return shortened;
+    }
+    if max_width <= 1 {
+        return "…".repeat(max_width);
+    }
+    let tail: String = chars[chars.len() - (max_width - 1)..].iter().collect();
+    format!("…{tail}")
 }
 
 // The companion's jobDataPath is jobLogPath with .json, which is why swapping the extension is safe.
@@ -1208,12 +1377,19 @@ impl App {
                     }
                     sort_jobs_newest_first(&mut recent);
 
-                    self.running_count = running.len();
-                    self.recent_count = recent.len();
-
                     let mut combined = running;
                     combined.extend(recent);
                     self.all_jobs = combined;
+                    self.job_workspaces.clear();
+
+                    if let Ok((loaded_jobs, loaded_ws)) =
+                        load_all_workspace_jobs_from_dir(&resolve_companion_state_dir())
+                    {
+                        self.merge_descendant_jobs(loaded_jobs, &loaded_ws);
+                    } else {
+                        self.merge_descendant_jobs(Vec::new(), &HashMap::new());
+                    }
+
                     self.last_error = None;
                     self.apply_filter();
                 }
@@ -1222,6 +1398,92 @@ impl App {
                 }
             }
         }
+    }
+
+    pub fn merge_descendant_jobs(
+        &mut self,
+        loaded_jobs: Vec<JobItem>,
+        loaded_ws: &HashMap<String, WorkspaceInfo>,
+    ) {
+        // Base workspace info for jobs already present from single-workspace fetch
+        for job in &self.all_jobs {
+            if let Some(info) = loaded_ws.get(&job.id) {
+                self.job_workspaces.insert(job.id.clone(), info.clone());
+            } else if !self.workspace_root.is_empty() {
+                self.job_workspaces.insert(
+                    job.id.clone(),
+                    WorkspaceInfo {
+                        label: format_workspace_label(Some(&self.workspace_root), ""),
+                        path: Some(self.workspace_root.clone()),
+                    },
+                );
+            }
+        }
+
+        // Include jobs from any workspace whose recorded path is a descendant of workspace_root
+        if !self.workspace_root.is_empty() {
+            for job in loaded_jobs {
+                if let Some(ws_info) = loaded_ws.get(&job.id) {
+                    if let Some(ws_path) = ws_info.path.as_deref() {
+                        if is_descendant_workspace(&self.workspace_root, ws_path)
+                            && !self.all_jobs.iter().any(|j| j.id == job.id)
+                        {
+                            self.job_workspaces.insert(job.id.clone(), ws_info.clone());
+                            self.all_jobs.push(job);
+                        }
+                    }
+                }
+            }
+        }
+
+        sort_jobs_newest_first(&mut self.all_jobs);
+        self.running_count = self
+            .all_jobs
+            .iter()
+            .filter(|j| j.status_category == StatusCategory::Active)
+            .count();
+        self.recent_count = self.all_jobs.len().saturating_sub(self.running_count);
+        self.apply_filter();
+    }
+
+    pub fn should_show_workspace_columns(&self) -> bool {
+        if self.all_workspaces {
+            return true;
+        }
+
+        let job_list = if !self.jobs.is_empty() {
+            &self.jobs
+        } else {
+            &self.all_jobs
+        };
+
+        let mut distinct = HashSet::new();
+        for job in job_list {
+            if let Some(info) = self.job_workspaces.get(&job.id) {
+                if let Some(path) = &info.path {
+                    let trimmed = path.trim_end_matches('/');
+                    let p = if trimmed.is_empty() {
+                        path.as_str()
+                    } else {
+                        trimmed
+                    };
+                    distinct.insert(p);
+                } else {
+                    distinct.insert(info.label.as_str());
+                }
+            } else if !self.workspace_root.is_empty() {
+                let trimmed = self.workspace_root.trim_end_matches('/');
+                let p = if trimmed.is_empty() {
+                    self.workspace_root.as_str()
+                } else {
+                    trimmed
+                };
+                distinct.insert(p);
+            } else {
+                distinct.insert("-");
+            }
+        }
+        distinct.len() > 1
     }
 
     pub fn request_cancel_selected(&mut self) {
@@ -1510,7 +1772,7 @@ impl App {
     }
 }
 
-fn sort_jobs_newest_first(jobs: &mut [JobItem]) {
+pub fn sort_jobs_newest_first(jobs: &mut [JobItem]) {
     jobs.sort_by(|a, b| {
         let key_a = a
             .updated_at
@@ -1697,11 +1959,13 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
             .style(Style::default().fg(DIM));
         frame.render_widget(empty_text, table_area);
     } else {
-        let (widths, header_cells) = if app.all_workspaces {
+        let show_workspace_columns = app.should_show_workspace_columns();
+        let (widths, header_cells) = if show_workspace_columns {
             (
                 vec![
                     Constraint::Length(13),
                     Constraint::Length(18),
+                    Constraint::Length(DIRECTORY_COL_WIDTH as u16),
                     Constraint::Length(20),
                     Constraint::Length(12),
                     Constraint::Length(9),
@@ -1711,6 +1975,7 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
                 vec![
                     "STATUS",
                     "WORKSPACE",
+                    "DIRECTORY",
                     "ID",
                     "TYPE/AGENT",
                     "BACKEND",
@@ -1739,19 +2004,25 @@ fn render_ui(frame: &mut Frame, app: &mut App) {
             )
         };
 
+        let home = std::env::var("HOME").ok();
         let rows: Vec<Row> = app
             .jobs
             .iter()
             .map(|job| {
                 let status_style = job.status_category.style();
                 let mut cells = vec![Cell::from(job.status.as_str()).style(status_style)];
-                if app.all_workspaces {
-                    let ws_label = app
-                        .job_workspaces
-                        .get(&job.id)
-                        .map(|w| w.label.as_str())
-                        .unwrap_or("-");
+                if show_workspace_columns {
+                    let info = app.job_workspaces.get(&job.id);
+                    let ws_label = info.map(|w| w.label.as_str()).unwrap_or("-");
                     cells.push(Cell::from(ws_label));
+
+                    // A workspace with no recorded path is why `c` cannot clear
+                    // it, so the column says so rather than leaving a blank.
+                    let dir = match info.and_then(|w| w.path.as_deref()) {
+                        Some(p) => abbreviate_path(p, home.as_deref(), DIRECTORY_COL_WIDTH),
+                        None => "-".to_string(),
+                    };
+                    cells.push(Cell::from(dir).style(Style::default().fg(DIM)));
                 }
                 cells.push(Cell::from(job.id.as_str()));
                 cells.push(Cell::from(job.type_agent.as_str()));
@@ -3319,5 +3590,394 @@ console.log(JSON.stringify({ cleared: [] }));
         assert_eq!(app.last_error, None);
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_parse_rfc3339_ms_accepts_companion_shapes_and_rejects_junk() {
+        assert_eq!(parse_rfc3339_ms("1970-01-01T00:00:00.000Z"), Some(0));
+        assert_eq!(parse_rfc3339_ms("1970-01-01T00:00:01Z"), Some(1000));
+        // Value cross-checked against Date.parse for the same string.
+        assert_eq!(
+            parse_rfc3339_ms("2026-09-10T11:35:56.157Z"),
+            Some(1_789_040_156_157)
+        );
+        // A leap day must land one day after Feb 28 in the same year.
+        let feb28 = parse_rfc3339_ms("2024-02-28T00:00:00Z").unwrap();
+        let feb29 = parse_rfc3339_ms("2024-02-29T00:00:00Z").unwrap();
+        assert_eq!(feb29 - feb28, 86_400_000);
+        // 2100 is divisible by 4 but not a leap year, so Mar 1 follows Feb 28
+        // directly. This is the case a naive `year % 4` check gets wrong.
+        let y2100_feb28 = parse_rfc3339_ms("2100-02-28T00:00:00Z").unwrap();
+        let y2100_mar01 = parse_rfc3339_ms("2100-03-01T00:00:00Z").unwrap();
+        assert_eq!(y2100_mar01 - y2100_feb28, 86_400_000);
+        // Pre-epoch stamps have no u64 representation. The companion never
+        // writes one, so rejecting is better than wrapping into a huge value.
+        assert_eq!(parse_rfc3339_ms("1969-12-31T23:59:59Z"), None);
+        // Short fractions are padded, long ones truncated to milliseconds.
+        assert_eq!(
+            parse_rfc3339_ms("2026-01-01T00:00:00.5Z"),
+            Some(parse_rfc3339_ms("2026-01-01T00:00:00Z").unwrap() + 500)
+        );
+        assert_eq!(
+            parse_rfc3339_ms("2026-01-01T00:00:00.123456Z"),
+            Some(parse_rfc3339_ms("2026-01-01T00:00:00Z").unwrap() + 123)
+        );
+
+        assert_eq!(parse_rfc3339_ms(""), None);
+        assert_eq!(parse_rfc3339_ms("not-a-date"), None);
+        // No offsets: the companion only ever writes UTC, so a zoned stamp is
+        // unexpected input rather than something to silently misread.
+        assert_eq!(parse_rfc3339_ms("2026-09-10T11:35:56.157+05:30"), None);
+        assert_eq!(parse_rfc3339_ms("2026-13-10T11:35:56Z"), None);
+        assert_eq!(parse_rfc3339_ms("2026-09-10T25:00:00Z"), None);
+        assert_eq!(parse_rfc3339_ms("2026-09-10 11:35:56Z"), None);
+    }
+
+    #[test]
+    fn test_derive_elapsed_prefers_explicit_then_spans_timestamps() {
+        // Explicit fields win over the timestamps.
+        assert_eq!(
+            derive_elapsed(
+                Some("5m"),
+                Some(1),
+                Some("2026-09-10T11:00:00Z"),
+                None,
+                true,
+                0
+            ),
+            "5m"
+        );
+        assert_eq!(
+            derive_elapsed(Some(""), Some(90_000), None, None, false, 0),
+            "1m 30s"
+        );
+
+        // A finished job spans createdAt to completedAt, ignoring now.
+        assert_eq!(
+            derive_elapsed(
+                None,
+                None,
+                Some("2026-09-10T11:35:56.157Z"),
+                Some("2026-09-10T11:45:40.720Z"),
+                false,
+                9_999_999_999_999,
+            ),
+            "9m 44s"
+        );
+
+        // A running job spans createdAt to now. This is the case that used to
+        // render "-" for every row, because the companion writes neither
+        // `elapsed` nor `elapsedMs` onto job records.
+        let start = parse_rfc3339_ms("2026-09-10T11:35:56.157Z").unwrap();
+        assert_eq!(
+            derive_elapsed(
+                None,
+                None,
+                Some("2026-09-10T11:35:56.157Z"),
+                None,
+                true,
+                start + 45_000,
+            ),
+            "45s"
+        );
+
+        // A terminal job with no completedAt has no span to report.
+        assert_eq!(
+            derive_elapsed(None, None, Some("2026-09-10T11:35:56.157Z"), None, false, 0),
+            "-"
+        );
+        assert_eq!(derive_elapsed(None, None, None, None, true, 5_000), "-");
+        assert_eq!(
+            derive_elapsed(None, None, Some("junk"), None, true, 5_000),
+            "-"
+        );
+
+        // An end before the start means a clock problem, not a zero-length job.
+        assert_eq!(
+            derive_elapsed(
+                None,
+                None,
+                Some("2026-09-10T11:45:00Z"),
+                Some("2026-09-10T11:35:00Z"),
+                false,
+                0,
+            ),
+            "-"
+        );
+    }
+
+    #[test]
+    fn test_from_raw_derives_elapsed_from_timestamps() {
+        let raw = RawJob {
+            id: "task-derived".to_string(),
+            job_type: Some("task".to_string()),
+            status: Some("completed".to_string()),
+            backend: Some("agy".to_string()),
+            agent: Some("coder".to_string()),
+            created_at: Some("2026-09-10T11:35:56.157Z".to_string()),
+            updated_at: Some("2026-09-10T11:45:40.721Z".to_string()),
+            completed_at: Some("2026-09-10T11:45:40.720Z".to_string()),
+            phase: None,
+            elapsed: None,
+            elapsed_ms: None,
+            request: None,
+            error_message: None,
+            log_file: None,
+        };
+
+        let item = JobItem::from_raw_at(raw, 0);
+        assert_eq!(item.elapsed, "9m 44s");
+    }
+
+    #[test]
+    fn test_abbreviate_path_uses_tilde_and_truncates_from_the_left() {
+        let home = Some("/home/bhaswata");
+
+        assert_eq!(
+            abbreviate_path("/home/bhaswata/dotfiles/nixcfg", home, 34),
+            "~/dotfiles/nixcfg"
+        );
+        assert_eq!(abbreviate_path("/home/bhaswata", home, 34), "~");
+        // A path outside HOME keeps its leading slash.
+        assert_eq!(abbreviate_path("/srv/build", home, 34), "/srv/build");
+        // A directory merely prefixed by the home string is not inside it.
+        assert_eq!(
+            abbreviate_path("/home/bhaswata2/repo", home, 34),
+            "/home/bhaswata2/repo"
+        );
+        assert_eq!(abbreviate_path("/srv/build", None, 34), "/srv/build");
+
+        // Long paths keep their tail, which is what distinguishes workspaces.
+        let long = "/home/bhaswata/work/projects/llmhosting/syntheticdatagen/synthdata";
+        let out = abbreviate_path(long, home, 20);
+        assert_eq!(out.chars().count(), 20);
+        assert!(out.starts_with('…'));
+        assert!(out.ends_with("synthdata"));
+
+        // Exactly-fitting paths are left alone.
+        assert_eq!(abbreviate_path("/srv/build", home, 10), "/srv/build");
+        assert_eq!(abbreviate_path("/srv/build", home, 1), "…");
+        assert_eq!(abbreviate_path("/srv/build", home, 0), "");
+    }
+
+    #[test]
+    fn test_descendant_workspace_predicate() {
+        // Equal-path case
+        assert!(is_descendant_workspace("/a/b", "/a/b"));
+        assert!(is_descendant_workspace("/a/b/", "/a/b"));
+        assert!(is_descendant_workspace("/a/b", "/a/b/"));
+
+        // Path-segment aware: /a/bc must NOT count as a child of /a/b
+        assert!(!is_descendant_workspace("/a/b", "/a/bc"));
+        assert!(!is_descendant_workspace("/a/b", "/a/bc/d"));
+
+        // Valid descendants at arbitrary depth
+        assert!(is_descendant_workspace("/a/b", "/a/b/c"));
+        assert!(is_descendant_workspace("/a/b", "/a/b/c/d"));
+        assert!(is_descendant_workspace(
+            "/home/bhaswata/work/projects/llmhosting/syntheticdatagen/synthdata",
+            "/home/bhaswata/work/projects/llmhosting/syntheticdatagen/synthdata/.claude/worktrees/s3-v4"
+        ));
+
+        // Non-descendants
+        assert!(!is_descendant_workspace("/a/b", "/x/y"));
+        assert!(!is_descendant_workspace("/a/b", "/a/other"));
+        assert!(!is_descendant_workspace("/a/b", "/a"));
+        assert!(!is_descendant_workspace("/a/b", ""));
+        assert!(!is_descendant_workspace("", "/a/b"));
+    }
+
+    #[test]
+    fn test_merge_descendant_jobs_dedup_by_id_and_filters_descendants() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("oco-tui-dedup-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let repo_root = "/home/user/synthdata";
+
+        // Worktree directory: valid descendant containing duplicate job-base and new job-wt1
+        let wt_dir = temp_dir.join("worktree_s3");
+        std::fs::create_dir_all(&wt_dir).unwrap();
+        let wt_json = r#"{
+            "workspacePath": "/home/user/synthdata/.claude/worktrees/s3-v4",
+            "jobs": [
+                {
+                    "id": "job-base",
+                    "type": "task",
+                    "status": "completed",
+                    "createdAt": "2026-09-10T10:00:00Z"
+                },
+                {
+                    "id": "job-wt1",
+                    "type": "task",
+                    "status": "running",
+                    "createdAt": "2026-09-10T11:00:00Z"
+                }
+            ]
+        }"#;
+        std::fs::write(wt_dir.join("state.json"), wt_json).unwrap();
+
+        // Sibling directory: not a descendant (/home/user/synthdata-other)
+        let other_dir = temp_dir.join("other_repo");
+        std::fs::create_dir_all(&other_dir).unwrap();
+        let other_json = r#"{
+            "workspacePath": "/home/user/synthdata-other",
+            "jobs": [
+                {
+                    "id": "job-other",
+                    "type": "task",
+                    "status": "running",
+                    "createdAt": "2026-09-10T12:00:00Z"
+                }
+            ]
+        }"#;
+        std::fs::write(other_dir.join("state.json"), other_json).unwrap();
+
+        let (loaded_jobs, loaded_ws) = load_all_workspace_jobs_from_dir(&temp_dir).unwrap();
+
+        let base_job = JobItem::from_raw(RawJob {
+            id: "job-base".to_string(),
+            job_type: Some("task".to_string()),
+            status: Some("running".to_string()),
+            created_at: Some("2026-09-10T09:00:00Z".to_string()),
+            ..Default::default()
+        });
+
+        let mut app = App {
+            workspace_root: repo_root.to_string(),
+            all_jobs: vec![base_job],
+            ..Default::default()
+        };
+
+        app.merge_descendant_jobs(loaded_jobs, &loaded_ws);
+
+        // Deduplication by ID: job-base must appear only once (the base version with status "running")
+        assert_eq!(app.all_jobs.len(), 2);
+        assert_eq!(
+            app.all_jobs.iter().filter(|j| j.id == "job-base").count(),
+            1
+        );
+        let base_entry = app.all_jobs.iter().find(|j| j.id == "job-base").unwrap();
+        assert_eq!(base_entry.status, "running");
+
+        // Descendant job was added
+        assert!(app.all_jobs.iter().any(|j| j.id == "job-wt1"));
+
+        // Non-descendant job was excluded
+        assert!(!app.all_jobs.iter().any(|j| j.id == "job-other"));
+
+        // job_workspaces retains worktree's own label and directory, not rewritten
+        let wt_info = app.job_workspaces.get("job-wt1").unwrap();
+        assert_eq!(wt_info.label, "worktrees/s3-v4");
+        assert_eq!(
+            wt_info.path.as_deref(),
+            Some("/home/user/synthdata/.claude/worktrees/s3-v4")
+        );
+
+        // running_count and recent_count reflect the combined list:
+        // job-base is running (Active), job-wt1 is running (Active) -> 2 running, 0 recent
+        assert_eq!(app.running_count, 2);
+        assert_eq!(app.recent_count, 0);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_column_visibility_helper_one_workspace_hidden_two_shown() {
+        let job1 = JobItem::from_raw(RawJob {
+            id: "job-1".to_string(),
+            status: Some("running".to_string()),
+            ..Default::default()
+        });
+        let job2 = JobItem::from_raw(RawJob {
+            id: "job-2".to_string(),
+            status: Some("completed".to_string()),
+            ..Default::default()
+        });
+
+        // One workspace -> hidden
+        let mut ws_one = HashMap::new();
+        ws_one.insert(
+            "job-1".to_string(),
+            WorkspaceInfo {
+                label: "synthdata".to_string(),
+                path: Some("/home/user/synthdata".to_string()),
+            },
+        );
+        ws_one.insert(
+            "job-2".to_string(),
+            WorkspaceInfo {
+                label: "synthdata".to_string(),
+                path: Some("/home/user/synthdata".to_string()),
+            },
+        );
+        let app_one = App {
+            jobs: vec![job1.clone(), job2.clone()],
+            job_workspaces: ws_one,
+            all_workspaces: false,
+            workspace_root: "/home/user/synthdata".to_string(),
+            ..Default::default()
+        };
+        assert!(!app_one.should_show_workspace_columns());
+
+        // Two workspaces -> shown
+        let mut ws_two = HashMap::new();
+        ws_two.insert(
+            "job-1".to_string(),
+            WorkspaceInfo {
+                label: "synthdata".to_string(),
+                path: Some("/home/user/synthdata".to_string()),
+            },
+        );
+        ws_two.insert(
+            "job-2".to_string(),
+            WorkspaceInfo {
+                label: "worktrees/s3-v4".to_string(),
+                path: Some("/home/user/synthdata/.claude/worktrees/s3-v4".to_string()),
+            },
+        );
+        let app_two = App {
+            jobs: vec![job1.clone(), job2.clone()],
+            job_workspaces: ws_two,
+            all_workspaces: false,
+            workspace_root: "/home/user/synthdata".to_string(),
+            ..Default::default()
+        };
+        assert!(app_two.should_show_workspace_columns());
+
+        // Fallback: job without explicit job_workspaces entry uses workspace_root
+        let mut ws_fallback = HashMap::new();
+        ws_fallback.insert(
+            "job-2".to_string(),
+            WorkspaceInfo {
+                label: "worktrees/s3-v4".to_string(),
+                path: Some("/home/user/synthdata/.claude/worktrees/s3-v4".to_string()),
+            },
+        );
+        let app_fallback = App {
+            jobs: vec![job1.clone(), job2.clone()],
+            job_workspaces: ws_fallback,
+            all_workspaces: false,
+            workspace_root: "/home/user/synthdata".to_string(),
+            ..Default::default()
+        };
+        assert!(app_fallback.should_show_workspace_columns());
+
+        // all_workspaces view always shows columns
+        let app_all = App {
+            jobs: vec![job1],
+            all_workspaces: true,
+            ..Default::default()
+        };
+        assert!(app_all.should_show_workspace_columns());
+
+        // Zero jobs -> hidden
+        let app_empty = App {
+            jobs: Vec::new(),
+            all_workspaces: false,
+            ..Default::default()
+        };
+        assert!(!app_empty.should_show_workspace_columns());
     }
 }

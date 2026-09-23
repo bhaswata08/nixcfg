@@ -96,6 +96,11 @@
         ];
       };
       cargoLock.lockFile = ./oco-tui/Cargo.lock;
+      # The all-workspace clear tests spawn `node` against a mock companion
+      # script, so the check phase needs node on PATH. The build sandbox has
+      # no system PATH, so without this the four clear tests fail with
+      # "failed to execute node" instead of the assertions they mean to test.
+      nativeCheckInputs = [ pkgs.nodejs ];
     })
     markdownlint-cli2 # markdown linter surfaced via none-ls diagnostics
 
