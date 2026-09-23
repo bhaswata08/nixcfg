@@ -61,12 +61,18 @@ in
   # with the raw device can see which blocks are in use, though not what is in
   # them.
   #
-  # No tpm2-device option yet. The TPM is enrolled after the first successful
-  # boot, so a bad enrolment cannot lock you out of a system you have never
-  # booted. That step adds `crypttabExtraOpts = [ "tpm2-device=auto" ];` here.
+  # The TPM was enrolled after the first successful boot, so a bad enrolment
+  # could never lock you out of a system you had not yet booted.
   boot.initrd.luks.devices."nixroot" = {
     device = "/dev/disk/by-uuid/e50820ae-33cb-4103-8366-b0c1f58ea084";
     allowDiscards = true;
+
+    # Unlock from the TPM instead of prompting. Enrolled against PCR 7 with
+    # systemd-cryptenroll; the passphrase stays in keyslot 0 as the fallback,
+    # so a firmware change that breaks the seal costs a prompt, not the disk.
+    # Secure Boot is off here, so PCR 7 is never extended: this buys
+    # convenience, not protection against someone walking off with the drive.
+    crypttabExtraOpts = [ "tpm2-device=auto" ];
   };
 
   # zram (modules/hardware.nix) is the only swap. configuration.nix forces this
