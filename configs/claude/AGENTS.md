@@ -77,3 +77,43 @@ Sonnet.
 
 You orchestrate. Read the result, judge it, and decide what happens next. A seat
 reporting success is not evidence the work is right, so check the diff.
+
+# Context discipline
+
+Every byte a command prints is a byte of context, and context that fills gets
+compacted, which loses detail from earlier in the session. Treat command output
+as something you spend.
+
+- Bound the output before you run the command, not after. Pipe to `head`, pass
+  a line range to `sed -n`, add `-m` to `grep`, `--stat` to `git diff`, `-n` to
+  `git log`. A command you expect to print more than about a hundred lines needs
+  a bound or a reason.
+- Never print a whole file to find one thing in it. Grep for the symbol, then
+  read the twenty lines around the hit.
+- When you genuinely need the whole of something large, redirect it to the
+  scratchpad and query the file. The shell can read what you cannot afford to.
+- Searching that fans out across a repo belongs in a subagent, which reads the
+  files in its own context and hands back the conclusion. The routing rules
+  above already say this; output volume is the second reason for it.
+- Do not re-read a file you just edited to confirm the edit landed. The edit
+  would have failed loudly.
+- Repeated `git status` and `git diff` between steps is not verification. Run
+  them when you are about to commit or about to decide something.
+
+# Reporting when you stop
+
+Every message that ends a turn is read on its own: a finished task, a question
+you are blocked on, a plan waiting for approval. Assume the user has not read
+anything you wrote earlier in the session, and write so they never have to
+scroll up.
+
+- Say what the task was before you say what happened to it. A report that opens
+  with "fixed it" tells nothing to someone who has not been following along.
+- Name files, commands, and symbols in full. "The helper" and "that function"
+  mean nothing outside the messages that introduced them.
+- When you ask a question, restate what makes it one: what you found, what the
+  options are, and what each costs. The question on its own cannot be answered.
+- When you hand work back unfinished, say what is done, what is not, and why.
+- Self-contained does not mean a transcript. Carry the facts the reader needs
+  to act, and cut the rest.
+- Write the report in the reply. Do not put it in a file unless asked.
