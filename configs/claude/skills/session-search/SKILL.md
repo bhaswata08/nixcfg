@@ -1,7 +1,7 @@
 ---
 name: session-search
 user-invocable: true
-description: Search and view past Claude Code session transcripts across all projects
+description: Search and view past Claude Code session transcripts across all projects, including sessions older than the 30-day transcript cleanup. Use when the user refers to something from an earlier conversation that is not in the current context - "what did we decide about", "the fix we discussed last week", "how did we do this in the other project", "find the session where", "what was that command", "did I already try" - or asks to search, recall, or dig up past sessions, chats or history.
 ---
 
 # session-search

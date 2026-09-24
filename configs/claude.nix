@@ -35,6 +35,68 @@ let
         command = "bash ${config.home.homeDirectory}/.claude/statusline-command.sh";
       };
     };
+    # Read-only commands that show up constantly in transcripts and can never
+    # mutate anything. Every entry here is one permission prompt that stops
+    # happening. `union` appends without clobbering, so anything added later
+    # through /permissions survives the next activation.
+    #
+    # Deliberately absent: `cat` (bare, because `cat > file` writes), `sed -i`,
+    # `node`, `uv run`, `docker exec` and `ssh`. Those either write or run
+    # arbitrary code, and a prompt is the point.
+    union = {
+      permissions = {
+        allow = [
+          # Reading and searching
+          "Bash(ls:*)"
+          "Bash(sed -n:*)"
+          "Bash(cat -n:*)"
+          "Bash(head:*)"
+          "Bash(tail:*)"
+          "Bash(wc:*)"
+          "Bash(grep:*)"
+          "Bash(rg:*)"
+          "Bash(fd:*)"
+          "Bash(find:*)"
+          "Bash(file:*)"
+          "Bash(stat:*)"
+          "Bash(du:*)"
+          "Bash(realpath:*)"
+          "Bash(readlink:*)"
+          "Bash(jq:*)"
+          "Bash(tree:*)"
+          # Git, read-only subcommands only
+          "Bash(git status:*)"
+          "Bash(git diff:*)"
+          "Bash(git log:*)"
+          "Bash(git show:*)"
+          "Bash(git blame:*)"
+          "Bash(git branch:*)"
+          "Bash(git remote -v)"
+          "Bash(git stash list)"
+          "Bash(git ls-files:*)"
+          "Bash(git rev-parse:*)"
+          "Bash(git describe:*)"
+          "Bash(git worktree list)"
+          # Nix, evaluation and inspection only. `nix flake update`,
+          # `nix build` and `nh os switch` stay behind a prompt.
+          "Bash(nix-instantiate --parse:*)"
+          "Bash(nix flake metadata:*)"
+          "Bash(nix flake show:*)"
+          "Bash(nix eval:*)"
+          "Bash(nix search:*)"
+          "Bash(nix path-info:*)"
+          "Bash(nixfmt --check:*)"
+          "Bash(statix check:*)"
+          "Bash(deadnix --fail:*)"
+          # This machine's own read-only tooling
+          "Bash(claude-session-index show:*)"
+          "Bash(claude-session-index search:*)"
+          "Bash(claude-session-index doctor:*)"
+          "Bash(systemctl --user status:*)"
+          "Bash(journalctl --user:*)"
+        ];
+      };
+    };
     seed = {
       model = "opus";
       effortLevel = "medium";

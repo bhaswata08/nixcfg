@@ -178,10 +178,15 @@ def update_plugin(plugin_name: str) -> None:
 
 
 def update_defaults(defaults_json: str) -> None:
-    """Apply enforce and seed policies from a JSON document.
+    """Apply enforce, union and seed policies from a JSON document.
 
     enforce: recursive dict merge that overwrites leaves.
-    seed: recursive dict merge that only fills in missing keys.
+    union:   recursive dict merge that appends missing list items, preserving
+             order and whatever the user added themselves. Scalars behave like
+             seed. This is what permissions.allow needs: the declared entries
+             must always be present, but entries added later through
+             /permissions must survive the next activation.
+    seed:    recursive dict merge that only fills in missing keys.
     """
     try:
         data = json.loads(defaults_json)
@@ -194,6 +199,7 @@ def update_defaults(defaults_json: str) -> None:
         sys.exit(1)
 
     enforce_data = data.get("enforce", {})
+    union_data = data.get("union", {})
     seed_data = data.get("seed", {})
 
     def _merge_enforce(base: dict, update: dict) -> None:
@@ -202,6 +208,39 @@ def update_defaults(defaults_json: str) -> None:
                 _merge_enforce(base[k], v)
             else:
                 base[k] = copy.deepcopy(v) if isinstance(v, (dict, list)) else v
+
+    def _item_key(item):
+        # Lists of permission rules are strings; hooks and matchers are dicts.
+        # sort_keys makes the dict form order-independent so a reordered but
+        # otherwise identical entry is not appended twice.
+        if isinstance(item, (dict, list)):
+            return json.dumps(item, sort_keys=True)
+        return item
+
+    def _merge_union(base: dict, update: dict) -> None:
+        for k, v in update.items():
+            if isinstance(v, dict):
+                if not isinstance(base.get(k), dict):
+                    base[k] = {}
+                _merge_union(base[k], v)
+            elif isinstance(v, list):
+                current = base.get(k)
+                if not isinstance(current, list):
+                    current = []
+                seen = set()
+                merged = []
+                for item in list(current) + v:
+                    key = _item_key(item)
+                    try:
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                    except TypeError:
+                        pass
+                    merged.append(copy.deepcopy(item) if isinstance(item, (dict, list)) else item)
+                base[k] = merged
+            elif k not in base or base[k] is None:
+                base[k] = v
 
     def _merge_seed(base: dict, seed: dict) -> None:
         for k, v in seed.items():
@@ -213,6 +252,8 @@ def update_defaults(defaults_json: str) -> None:
     def modifier(settings: dict) -> None:
         if isinstance(enforce_data, dict):
             _merge_enforce(settings, enforce_data)
+        if isinstance(union_data, dict):
+            _merge_union(settings, union_data)
         if isinstance(seed_data, dict):
             _merge_seed(settings, seed_data)
 
