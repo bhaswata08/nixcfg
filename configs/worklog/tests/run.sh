@@ -170,4 +170,75 @@ else
   fail=1
 fi
 
+# --- main(): no activity anywhere -> exit 0, no output, no file write ---
+mkdir -p "$tmp/empty_self_projects" "$tmp/empty_work"
+(
+  watch_dirs=("$tmp/empty_self_projects" "$tmp/empty_work")
+  log_file="$tmp/should-not-exist.md"
+  set +e
+  out="$(main --dry-run 2>&1)"
+  code=$?
+  set -e
+  if [[ $code -eq 0 && -z "$out" && ! -e "$log_file" ]]; then
+    echo "PASS: main exits 0 silently with zero activity"
+  else
+    echo "FAIL: main exits 0 silently with zero activity (code=$code out=$out)"
+    fail=1
+  fi
+)
+
+# --- main(): activity present, claude fails -> exit 1, no file write ---
+(
+  watch_dirs=("$tmp/self_projects")
+  log_file="$tmp/should-also-not-exist.md"
+  claude() { return 1; }
+  export -f claude
+  set +e
+  main --dry-run > /dev/null 2>&1
+  code=$?
+  set -e
+  if [[ $code -ne 0 && ! -e "$log_file" ]]; then
+    echo "PASS: main aborts without writing when claude fails"
+  else
+    echo "FAIL: main aborts without writing when claude fails"
+    fail=1
+  fi
+)
+
+# --- main(): activity present, claude exits 0 but prints nothing -> exit 1, no file write ---
+(
+  watch_dirs=("$tmp/self_projects")
+  log_file="$tmp/should-not-exist-either.md"
+  claude() { :; }
+  export -f claude
+  set +e
+  main --dry-run > /dev/null 2>&1
+  code=$?
+  set -e
+  if [[ $code -ne 0 && ! -e "$log_file" ]]; then
+    echo "PASS: main treats empty claude output as a failure and writes nothing"
+  else
+    echo "FAIL: main treats empty claude output as a failure and writes nothing"
+    fail=1
+  fi
+)
+
+# --- main(): activity present, dry-run prints two sections ---
+(
+  watch_dirs=("$tmp/self_projects")
+  claude() { echo "## Summary
+- did stuff
+## Details
+did some stuff in detail"; }
+  export -f claude
+  out="$(main --dry-run)"
+  if echo "$out" | grep -q "## Summary" && echo "$out" | grep -q "## Details"; then
+    echo "PASS: main --dry-run produces both sections end to end"
+  else
+    echo "FAIL: main --dry-run produces both sections end to end"
+    fail=1
+  fi
+)
+
 exit "$fail"
+

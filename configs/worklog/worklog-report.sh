@@ -77,7 +77,39 @@ write_output() {
   printf '%s%s\n\n%s\n' "$prefix" "$heading" "$summary" >> "$log_file"
 }
 
+build_activity_report() {
+  local repo activity report=""
+  while IFS= read -r repo; do
+    [[ -n "$repo" ]] || continue
+    if activity="$(collect_repo_activity "$repo")"; then
+      report+="$activity"
+    fi
+  done < <(find_repos)
+  printf '%s' "$report"
+}
+
+main() {
+  local dry_run=0
+  [[ "${1:-}" == "--dry-run" ]] && dry_run=1
+
+  local activity
+  activity="$(build_activity_report)"
+
+  if [[ -z "$activity" ]]; then
+    return 0
+  fi
+
+  local prompt summary
+  prompt="$(build_prompt "$activity")"
+
+  if ! summary="$(call_summarizer "$prompt")" || [[ -z "$summary" ]]; then
+    echo "worklog-report: claude summarization failed" >&2
+    return 1
+  fi
+
+  write_output "$summary" "$dry_run"
+}
+
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  echo "worklog-report: not fully implemented yet" >&2
-  exit 1
+  main "$@"
 fi
