@@ -240,5 +240,25 @@ did some stuff in detail"; }
   fi
 )
 
+# --- collect_repo_activity: caps oversized diffs ---
+mkdir -p "$tmp/large-diff-repo"
+git init -q "$tmp/large-diff-repo"
+git -C "$tmp/large-diff-repo" config user.email "test@example.com"
+git -C "$tmp/large-diff-repo" config user.name "Test"
+echo base > "$tmp/large-diff-repo/tracked.txt"
+git -C "$tmp/large-diff-repo" add tracked.txt
+git -C "$tmp/large-diff-repo" commit -q -m "base"
+seq 5000 > "$tmp/large-diff-repo/tracked.txt"
+
+large_out="$(collect_repo_activity "$tmp/large-diff-repo")"
+git -C "$tmp/large-diff-repo" add tracked.txt
+staged_out="$(collect_repo_activity "$tmp/large-diff-repo")"
+if [[ "$large_out" == *"[... truncated, "* && ${#large_out} -lt 20000 && "$staged_out" == *"[... truncated, "* && ${#staged_out} -lt 20000 ]]; then
+  echo "PASS: collect_repo_activity caps oversized diffs"
+else
+  echo "FAIL: collect_repo_activity caps oversized diffs"
+  fail=1
+fi
+
 exit "$fail"
 

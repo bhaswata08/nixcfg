@@ -22,7 +22,13 @@ collect_repo_activity() {
     commits="$(git -C "$repo" log --author="$author" --since=midnight --stat 2>/dev/null || true)"
   fi
   diff="$(git -C "$repo" diff 2>/dev/null || true)"
+  if [[ ${#diff} -gt 15000 ]]; then
+    diff="${diff:0:15000}"$'\n'"[... truncated, ${#diff} bytes total ...]"
+  fi
   staged="$(git -C "$repo" diff --staged 2>/dev/null || true)"
+  if [[ ${#staged} -gt 15000 ]]; then
+    staged="${staged:0:15000}"$'\n'"[... truncated, ${#staged} bytes total ...]"
+  fi
 
   if [[ -z "$commits" && -z "$diff" && -z "$staged" ]]; then
     return 1
