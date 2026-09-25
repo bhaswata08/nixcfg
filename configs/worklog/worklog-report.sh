@@ -8,10 +8,17 @@ log_file="${WORKLOG_FILE:-$HOME/worklog.md}"
 
 find_repos() {
   local dir
+  # Depth 6 reaches repos like ~/work/projects/llmhosting/syntheticdatagen/synthdata.
+  # Dependency and cache dirs are pruned so the deeper walk stays cheap and
+  # vendored checkouts inside them aren't mistaken for the user's repos.
   for dir in "${watch_dirs[@]}"; do
     [[ -d "$dir" ]] || continue
-    find "$dir" -maxdepth 3 -type d -name .git 2>/dev/null
-  done | grep -v '/node_modules/' | sed 's#/\.git$##' | sort -u
+    find "$dir" -maxdepth 6 \
+      -type d \( -name node_modules -o -name .venv -o -name venv \
+        -o -name .cache -o -name __pycache__ -o -name .direnv \
+        -o -name .tox -o -name .mypy_cache -o -name target \) -prune \
+      -o -type d -name .git -print -prune 2>/dev/null
+  done | sed 's#/\.git$##' | sort -u
 }
 
 _touched_since() {

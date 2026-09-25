@@ -50,6 +50,14 @@ echo changed >> "$tmp/no-email-repo/tracked.txt"
 # nor inherited from a global config in this isolated HOME), to exercise
 # the case where `git config user.email` returns nothing.
 
+# Nested five levels below a watch dir, like
+# ~/work/projects/llmhosting/syntheticdatagen/synthdata/.git.
+git init -q "$tmp/work/a/b/c/nested-repo"
+
+# Repos inside dependency/cache dirs must be pruned, not reported.
+git init -q "$tmp/work/web/node_modules/some-dep"
+git init -q "$tmp/work/py/.venv/src/some-dep"
+
 # --- load functions under test ---
 watch_dirs=("$tmp/self_projects" "$tmp/work")
 # shellcheck source=/dev/null
@@ -57,7 +65,19 @@ source "$script_dir/../worklog-report.sh"
 
 # --- find_repos ---
 found="$(find_repos)"
-assert_eq "finds all three repos" "3" "$(echo "$found" | wc -l)"
+assert_eq "finds all four repos" "4" "$(echo "$found" | wc -l)"
+if echo "$found" | grep -qF "$tmp/work/a/b/c/nested-repo"; then
+  echo "PASS: finds repo nested five levels deep"
+else
+  echo "FAIL: finds repo nested five levels deep"
+  fail=1
+fi
+if echo "$found" | grep -qE '/(node_modules|\.venv)/'; then
+  echo "FAIL: skips repos inside node_modules and .venv"
+  fail=1
+else
+  echo "PASS: skips repos inside node_modules and .venv"
+fi
 if echo "$found" | grep -qF "$tmp/self_projects/active repo"; then
   echo "PASS: finds repo with a space in its path"
 else
