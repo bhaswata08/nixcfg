@@ -1,7 +1,7 @@
 ---
 description: Fallback adversarial reviewer. Same job as adversary, used when its primary model cannot be reached.
 mode: all
-model: openrouter/meta/muse-spark-1.3-contributor
+model: opencode/muse-spark-1.3-contributor-free
 temperature: 0.1
 tools:
   write: false
