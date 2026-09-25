@@ -18,6 +18,7 @@
     ./configs/herdr.nix
     ./configs/kokoro-server.nix
     ./configs/wezterm.nix
+    ./configs/worklog.nix
     ./configs/programs.nix
     ./configs/rofi.nix
     ./configs/starship.nix

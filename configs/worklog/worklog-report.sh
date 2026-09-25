@@ -35,9 +35,9 @@ collect_repo_activity() {
   fi
 
   printf '### %s\n\n' "$repo"
-  [[ -n "$commits" ]] && printf '**Commits:**\n```\n%s\n```\n\n' "$commits"
-  [[ -n "$diff" ]] && printf '**Uncommitted changes:**\n```diff\n%s\n```\n\n' "$diff"
-  [[ -n "$staged" ]] && printf '**Staged changes:**\n```diff\n%s\n```\n\n' "$staged"
+  [[ -n "$commits" ]] && printf $'**Commits:**\n```\n%s\n```\n\n' "$commits"
+  [[ -n "$diff" ]] && printf $'**Uncommitted changes:**\n```diff\n%s\n```\n\n' "$diff"
+  [[ -n "$staged" ]] && printf $'**Staged changes:**\n```diff\n%s\n```\n\n' "$staged"
   return 0
 }
 
