@@ -62,6 +62,21 @@ call_summarizer() {
   printf '%s' "$prompt" | claude -p --model haiku
 }
 
+write_output() {
+  local summary="$1" dry_run="$2"
+  local heading
+  heading="## $(date +%Y-%m-%d)"
+
+  if [[ "$dry_run" == "1" ]]; then
+    printf '%s\n\n%s\n' "$heading" "$summary"
+    return 0
+  fi
+
+  local prefix=""
+  [[ -s "$log_file" ]] && prefix=$'\n'
+  printf '%s%s\n\n%s\n' "$prefix" "$heading" "$summary" >> "$log_file"
+}
+
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   echo "worklog-report: not fully implemented yet" >&2
   exit 1

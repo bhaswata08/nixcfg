@@ -141,4 +141,33 @@ else
   echo "PASS: call_summarizer propagates a non-zero exit from claude"
 fi
 
+# --- write_output: dry-run ---
+dry_output="$(write_output "test summary" "1")"
+if echo "$dry_output" | head -1 | grep -qE '^## [0-9]{4}-[0-9]{2}-[0-9]{2}$' && echo "$dry_output" | grep -q "test summary"; then
+  echo "PASS: write_output dry-run prints heading and summary, writes no file"
+else
+  echo "FAIL: write_output dry-run prints heading and summary, writes no file"
+  fail=1
+fi
+
+# --- write_output: fresh file, no leading blank line ---
+log_file="$tmp/fresh-worklog.md"
+write_output "first entry" "0"
+first_line="$(head -1 "$log_file")"
+if [[ "$first_line" =~ ^\#\#\ [0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+  echo "PASS: write_output on a fresh file starts with the heading, no leading blank line"
+else
+  echo "FAIL: write_output on a fresh file starts with the heading, no leading blank line"
+  fail=1
+fi
+
+# --- write_output: appends a second entry ---
+write_output "second entry" "0"
+if grep -q "first entry" "$log_file" && grep -q "second entry" "$log_file"; then
+  echo "PASS: write_output appends without erasing prior entries"
+else
+  echo "FAIL: write_output appends without erasing prior entries"
+  fail=1
+fi
+
 exit "$fail"
