@@ -14,18 +14,40 @@ find_repos() {
   done | grep -v '/node_modules/' | sed 's#/\.git$##' | sort -u
 }
 
+_touched_since() {
+  local repo="$1" cutoff="$2" f mtime
+  while IFS= read -r f; do
+    [[ -n "$f" ]] || continue
+    [[ -f "$repo/$f" ]] || continue
+    # A deleted file can't be stat'd, so it's skipped rather than assumed
+    # recent — we'd rather miss a same-day deletion than keep resurrecting
+    # months-old diffs just because one of the changed paths is gone.
+    mtime="$(stat -c %Y "$repo/$f" 2>/dev/null || echo 0)"
+    (( mtime >= cutoff )) && return 0
+  done
+  return 1
+}
+
 collect_repo_activity() {
   local repo="$1"
   local author="" commits="" diff="" staged=""
+  local midnight
+  midnight="$(date -d "today 00:00" +%s)"
   author="$(git -C "$repo" config user.email 2>/dev/null || true)"
   if [[ -n "$author" ]]; then
     commits="$(git -C "$repo" log --author="$author" --since=midnight --stat 2>/dev/null || true)"
   fi
   diff="$(git -C "$repo" diff 2>/dev/null || true)"
+  if [[ -n "$diff" ]] && ! git -C "$repo" diff --name-only 2>/dev/null | _touched_since "$repo" "$midnight"; then
+    diff=""
+  fi
   if [[ ${#diff} -gt 15000 ]]; then
     diff="${diff:0:15000}"$'\n'"[... truncated, ${#diff} bytes total ...]"
   fi
   staged="$(git -C "$repo" diff --staged 2>/dev/null || true)"
+  if [[ -n "$staged" ]] && ! git -C "$repo" diff --staged --name-only 2>/dev/null | _touched_since "$repo" "$midnight"; then
+    staged=""
+  fi
   if [[ ${#staged} -gt 15000 ]]; then
     staged="${staged:0:15000}"$'\n'"[... truncated, ${#staged} bytes total ...]"
   fi

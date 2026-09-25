@@ -87,6 +87,52 @@ else
   fail=1
 fi
 
+# A repo whose only uncommitted change is old (file mtime predates today)
+# must NOT be reported as active — it's stale WIP sitting in the working
+# tree, not something touched today.
+mkdir -p "$tmp/stale-diff-repo"
+git init -q "$tmp/stale-diff-repo"
+git -C "$tmp/stale-diff-repo" config user.email "test@example.com"
+git -C "$tmp/stale-diff-repo" config user.name "Test"
+echo base > "$tmp/stale-diff-repo/tracked.txt"
+git -C "$tmp/stale-diff-repo" add tracked.txt
+# Base commit is backdated too, so only the uncommitted diff below is under
+# test — an unbackdated commit would itself count as "today's" activity via
+# the commits path, defeating the point of this fixture.
+two_days_ago="$(date -d "2 days ago" --iso-8601=seconds)"
+GIT_AUTHOR_DATE="$two_days_ago" GIT_COMMITTER_DATE="$two_days_ago" \
+  git -C "$tmp/stale-diff-repo" commit -q -m "base"
+echo changed >> "$tmp/stale-diff-repo/tracked.txt"
+touch -d "2 days ago" "$tmp/stale-diff-repo/tracked.txt"
+
+if collect_repo_activity "$tmp/stale-diff-repo" > /dev/null; then
+  echo "FAIL: repo with only a stale (pre-today) uncommitted diff incorrectly reports activity"
+  fail=1
+else
+  echo "PASS: repo with only a stale (pre-today) uncommitted diff reports no activity"
+fi
+
+# A stale, already-deleted file in the diff must not be assumed "recent" just
+# because it can't be stat'd — that previously made any old repo with a
+# months-old pending deletion look active every single day.
+mkdir -p "$tmp/stale-delete-repo"
+git init -q "$tmp/stale-delete-repo"
+git -C "$tmp/stale-delete-repo" config user.email "test@example.com"
+git -C "$tmp/stale-delete-repo" config user.name "Test"
+echo base > "$tmp/stale-delete-repo/tracked.txt"
+git -C "$tmp/stale-delete-repo" add tracked.txt
+old_date="$(date -d "2 days ago" --iso-8601=seconds)"
+GIT_AUTHOR_DATE="$old_date" GIT_COMMITTER_DATE="$old_date" \
+  git -C "$tmp/stale-delete-repo" commit -q -m "base"
+rm "$tmp/stale-delete-repo/tracked.txt"
+
+if collect_repo_activity "$tmp/stale-delete-repo" > /dev/null; then
+  echo "FAIL: repo with only a stale pending deletion incorrectly reports activity"
+  fail=1
+else
+  echo "PASS: repo with only a stale pending deletion reports no activity"
+fi
+
 # HOME is overridden to an empty dir with no .gitconfig so `git config
 # user.email` genuinely returns nothing here, instead of falling back to
 # the real user's global config.
