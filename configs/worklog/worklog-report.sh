@@ -35,6 +35,33 @@ collect_repo_activity() {
   return 0
 }
 
+build_prompt() {
+  local activity="$1"
+  cat <<EOF
+You are generating an entry for a personal engineering work log from raw
+git activity below. Produce markdown with exactly two sections, in this
+order:
+
+## Summary
+One bullet per project below, one line each, in plain language (not a
+commit-message dump).
+
+## Details
+A short narrative per project describing what was actually done, written
+the way an engineer would describe it in their own log.
+
+Do not invent activity that isn't reflected in the data. Do not add any
+other sections or preamble.
+
+$activity
+EOF
+}
+
+call_summarizer() {
+  local prompt="$1"
+  printf '%s' "$prompt" | claude -p --model haiku
+}
+
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   echo "worklog-report: not fully implemented yet" >&2
   exit 1

@@ -98,4 +98,47 @@ else
   fail=1
 fi
 
+# --- build_prompt ---
+prompt="$(build_prompt "### repo-a
+
+**Commits:**
+did stuff
+")"
+if echo "$prompt" | grep -q "## Summary" && echo "$prompt" | grep -q "## Details" && echo "$prompt" | grep -q "repo-a"; then
+  echo "PASS: build_prompt includes both section headers and the activity text"
+else
+  echo "FAIL: build_prompt includes both section headers and the activity text"
+  fail=1
+fi
+
+# --- call_summarizer (stubbed claude) ---
+stub_bin="$tmp/stub_bin"
+mkdir -p "$stub_bin"
+cat > "$stub_bin/claude" <<'EOF'
+#!/usr/bin/env bash
+input="$(cat)"
+if [[ "$input" == *"trigger-failure"* ]]; then
+  exit 1
+fi
+echo "## Summary
+- stub summary
+## Details
+stub details"
+EOF
+chmod +x "$stub_bin/claude"
+
+if summary="$(PATH="$stub_bin:$PATH" call_summarizer "hello world")" && [[ "$summary" == *"stub summary"* ]]; then
+  echo "PASS: call_summarizer returns the stub's output"
+else
+  echo "FAIL: call_summarizer returns the stub's output"
+  fail=1
+fi
+
+if PATH="$stub_bin:$PATH" call_summarizer "please trigger-failure" > /dev/null 2>&1; then
+  echo "FAIL: call_summarizer propagates a non-zero exit from claude"
+  fail=1
+else
+  echo "PASS: call_summarizer propagates a non-zero exit from claude"
+fi
+
 exit "$fail"
