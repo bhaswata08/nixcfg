@@ -65,7 +65,7 @@ EOF
 
 call_summarizer() {
   local prompt="$1"
-  printf '%s' "$prompt" | claude -p --model haiku
+  printf '%s' "$prompt" | claude -p --model haiku --safe-mode --tools "" --no-session-persistence
 }
 
 write_output() {

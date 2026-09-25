@@ -12,6 +12,7 @@ let
     runtimeInputs = [
       pkgs.git
       pkgs.claude-code
+      pkgs.coreutils
       pkgs.gnugrep
       pkgs.gnused
       pkgs.findutils
@@ -32,6 +33,7 @@ in
     Service = {
       Type = "oneshot";
       ExecStart = "${worklogScript}/bin/worklog-report";
+      TimeoutStartSec = "10min";
     };
   };
 

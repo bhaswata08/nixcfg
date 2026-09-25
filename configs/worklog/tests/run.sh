@@ -184,8 +184,9 @@ mkdir -p "$tmp/empty_self_projects" "$tmp/empty_work"
   else
     echo "FAIL: main exits 0 silently with zero activity (code=$code out=$out)"
     fail=1
+    exit 1
   fi
-)
+) || fail=1
 
 # --- main(): activity present, claude fails -> exit 1, no file write ---
 (
@@ -202,8 +203,9 @@ mkdir -p "$tmp/empty_self_projects" "$tmp/empty_work"
   else
     echo "FAIL: main aborts without writing when claude fails"
     fail=1
+    exit 1
   fi
-)
+) || fail=1
 
 # --- main(): activity present, claude exits 0 but prints nothing -> exit 1, no file write ---
 (
@@ -220,8 +222,9 @@ mkdir -p "$tmp/empty_self_projects" "$tmp/empty_work"
   else
     echo "FAIL: main treats empty claude output as a failure and writes nothing"
     fail=1
+    exit 1
   fi
-)
+) || fail=1
 
 # --- main(): activity present, dry-run prints two sections ---
 (
@@ -237,8 +240,9 @@ did some stuff in detail"; }
   else
     echo "FAIL: main --dry-run produces both sections end to end"
     fail=1
+    exit 1
   fi
-)
+) || fail=1
 
 # --- collect_repo_activity: caps oversized diffs ---
 mkdir -p "$tmp/large-diff-repo"
