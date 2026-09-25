@@ -19,6 +19,27 @@
 - In any PowerPoint deck you produce, no text may render below 14pt. This covers slide bullets, titles, captions, table cells, and text inside embedded figures. Check the rendered size on the slide, not the authored size: an SVG authored in an 800-unit viewBox but placed at 402pt wide scales by 0.5, so an 18px label arrives at 9pt. When a figure cannot hold text that large, cut text out of the figure instead of shrinking it.
 - For any Python work, start the project with `uv init` and add every dependency with `uv add`. Never `uv pip install`. `uv add` records the dependency in `pyproject.toml` and the lockfile, so it survives `uv sync` and a rebuilt venv; `uv pip install` writes only into `.venv` and is silently lost the next time anyone syncs. Keep `pyproject.toml` and `uv.lock` in the repo, and treat a dependency that is not in `pyproject.toml` as not installed.
 
+# This machine
+
+NixOS. There is no global interpreter on `PATH` beyond what a package or a dev
+shell brings in, and a command that exists on an Ubuntu box is not here until
+something declares it.
+
+- There is no `python3` and no `python`. Reaching for either is the single most
+  repeated wasted command in this machine's transcripts. Run one-off Python
+  with `uv run --no-project python`, and Python that belongs to a project with
+  `uv run python` from inside that project. `node` is on `PATH` and is usually
+  the shorter path for parsing JSON or JSONL.
+- There is no `sqlite3` either. Use `uv run --no-project python` and the stdlib
+  `sqlite3` module, or `nix run nixpkgs#sqlite`.
+- Before assuming any other tool exists, run `command -v <tool>`. One cheap
+  check beats a failed command plus a retry.
+- The login shell is `nu`, not bash. Anything written for nushell, including
+  the functions in `configs/nushell/`, needs `nu -c`; the Bash tool is bash.
+- Home Manager links config files under `~` as read-only symlinks into
+  `/nix/store`. Edit the source in `~/dotfiles/nixcfg` and run `just switch`.
+  Editing the linked copy fails, and editing through the link is worse.
+
 # Delegating work to other models
 
 Three seats run on models other than yours, configured in
@@ -99,6 +120,16 @@ as something you spend.
   would have failed loudly.
 - Repeated `git status` and `git diff` between steps is not verification. Run
   them when you are about to commit or about to decide something.
+- Watch the depth of the session itself, not just single commands. Every turn
+  re-reads the whole context, so cost per turn rises with everything already in
+  it: a session at 300k pays roughly three times per turn what the same work
+  costs at 100k. Across this machine's records the ten deepest sessions account
+  for about seventy percent of all tokens ever spent.
+- So when a session passes roughly 150k and the next piece of work has a clean
+  seam, finish the thought, report, and start fresh rather than pressing on.
+  Prefer that to riding a session down into repeated compaction, which costs
+  the tokens anyway and loses detail while doing it. Carry what the next
+  session needs in the report, or in a memory file if it outlives the task.
 
 # Reporting when you stop
 

@@ -27,7 +27,12 @@ let
         "lua-lsp@claude-plugins-official" = true;
         "rust-analyzer-lsp@claude-plugins-official" = true;
         "superpowers@claude-plugins-official" = true;
-        "context7@claude-plugins-official" = true;
+        # Disabled deliberately, not merely absent: `enforce` overwrites the
+        # leaf, so `false` here actively turns the plugin off in settings.json
+        # and keeps it off. Across 535 transcripts its two tools were called
+        # zero times, while their schemas cost context in every session. Flip
+        # back to `true` if library-doc lookups start earning their keep.
+        "context7@claude-plugins-official" = false;
         "code-simplifier@claude-plugins-official" = true;
       };
       statusLine = {
@@ -101,6 +106,15 @@ let
       model = "opus";
       effortLevel = "medium";
       theme = "auto";
+      # Bash timeouts. The 2 minute stock default expired 12 times and the 10
+      # minute ceiling 7 more, always on the same three things: `nh os build`,
+      # docker pulls, and ssh work against ACRserver1. A timeout kills the
+      # command but still pays for every token spent getting there, then pays
+      # again on the retry. 10 minutes default, 20 maximum.
+      env = {
+        BASH_DEFAULT_TIMEOUT_MS = "600000";
+        BASH_MAX_TIMEOUT_MS = "1200000";
+      };
       modelSettings = {
         "claude-sonnet-5" = {
           effortLevel = "medium";
