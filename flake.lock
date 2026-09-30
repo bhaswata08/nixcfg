@@ -298,11 +298,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1771332283,
-        "narHash": "sha256-18mV+0zFg9W5YDe7WCZk2svIjA9+PCiiQS+hn9ZqdDQ=",
+        "lastModified": 1790766849,
+        "narHash": "sha256-IgH2vU3PsIJsMB/PFZ+PvyyEQAndZmNQFwICPwrWqxA=",
         "owner": "bhaswata08",
         "repo": "pfm",
-        "rev": "00ec25f9371c430263f3f990987bbd36eb217f3e",
+        "rev": "35391d2c43e09d14c5a76c94c4debfd18dec0d77",
         "type": "github"
       },
       "original": {
