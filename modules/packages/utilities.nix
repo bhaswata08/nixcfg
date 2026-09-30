@@ -45,6 +45,7 @@
     ngrok
     file
     yazi
+    openfortivpn
   ];
 
   programs.appimage.enable = true;
