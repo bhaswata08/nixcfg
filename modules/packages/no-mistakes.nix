@@ -19,20 +19,20 @@
 # The skill in configs/claude/skills/no-mistakes is a vendored copy, so re-vendor
 # it alongside every version bump:
 #
-#   curl -sL https://raw.githubusercontent.com/kunchenguid/no-mistakes/v1.70.1/skills/no-mistakes/SKILL.md \
+#   curl -sL https://raw.githubusercontent.com/kunchenguid/no-mistakes/v1.84.0/skills/no-mistakes/SKILL.md \
 #     -o configs/claude/skills/no-mistakes/SKILL.md
 buildGoModule rec {
   pname = "no-mistakes";
-  version = "1.70.1";
+  version = "1.84.0";
 
   src = fetchFromGitHub {
     owner = "kunchenguid";
     repo = "no-mistakes";
     rev = "v${version}";
-    hash = "sha256-XlVW3KbMzpmfuPYyUjdoL8LkBg46F5PmEUc4Jcj5TjA=";
+    hash = "sha256-ne+JfVfV0jjMldqyv25KTwrdexFs5ynFAGWgILiGPAk=";
   };
 
-  vendorHash = "sha256-NZOYxNYvt4192uqKBdKRxdgrKFvWx3585psdCnRdPSM=";
+  vendorHash = "sha256-maAVBptEtdrGanJHwAPAmuGBorzIMUgK6T+NmIz1kS0=";
 
   subPackages = [ "cmd/no-mistakes" ];
 
