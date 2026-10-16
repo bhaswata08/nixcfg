@@ -45,9 +45,9 @@ def synclaude [
     ...args                       # passed through to claude
 ] {
     let models = {
-        glm:        "hf:zai-org/GLM-5.2"
+        glm:        "hf:zai-org/GLM-5.3"
         glm-flash:  "hf:zai-org/GLM-5.3-Flash"
-        glm4-flash: "hf:zai-org/GLM-4.7-Flash"
+        deepseek:   "hf:deepseek-ai/DeepSeek-V4.1-Flash"
         kimi:       "hf:moonshotai/Kimi-K3"
         qwen:       "hf:Qwen/Qwen3.8-27B"
         nemotron:   "hf:nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4"
@@ -60,7 +60,7 @@ def synclaude [
     let context_lengths = {
         glm:        512_000
         glm-flash:  512_000
-        glm4-flash: 192_000
+        deepseek:   128_000
         kimi:       512_000
         qwen:       256_000
         nemotron:   256_000

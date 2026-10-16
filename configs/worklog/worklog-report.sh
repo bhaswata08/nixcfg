@@ -5,6 +5,9 @@ if [[ -z "${watch_dirs+x}" ]]; then
   watch_dirs=("$HOME/self_projects" "$HOME/work")
 fi
 log_file="${WORKLOG_FILE:-$HOME/worklog.md}"
+# Caps the file list handed to the file-activity session, so a day that
+# rewrote thousands of files (a dataset dump, a build) can't flood the prompt.
+max_touched_files="${WORKLOG_MAX_FILES:-400}"
 
 find_repos() {
   local dir
@@ -70,6 +73,33 @@ collect_repo_activity() {
   return 0
 }
 
+# Lists files under the watch dirs modified since midnight, by mtime. Names
+# only: the file-activity session opens whatever it needs to judge them.
+find_touched_files() {
+  local dir midnight
+  midnight="$(date -d "today 00:00" +%s)"
+  for dir in "${watch_dirs[@]}"; do
+    [[ -d "$dir" ]] || continue
+    find "$dir" -maxdepth 8 \
+      -type d \( -name .git -o -name node_modules -o -name .venv -o -name venv \
+        -o -name .cache -o -name __pycache__ -o -name .direnv \
+        -o -name .tox -o -name .mypy_cache -o -name target \
+        -o -name .pytest_cache -o -name .ruff_cache -o -name .ipynb_checkpoints \) -prune \
+      -o -type f -newermt "@$midnight" -print 2>/dev/null
+  done | sort
+}
+
+build_file_activity_report() {
+  local files count
+  files="$(find_touched_files)"
+  [[ -n "$files" ]] || return 0
+  count="$(printf '%s\n' "$files" | wc -l)"
+  printf '%s\n' "$files" | head -n "$max_touched_files"
+  if (( count > max_touched_files )); then
+    printf '[... %d more files not listed ...]\n' "$(( count - max_touched_files ))"
+  fi
+}
+
 build_prompt() {
   local activity="$1"
   cat <<EOF
@@ -92,6 +122,47 @@ $activity
 EOF
 }
 
+build_file_prompt() {
+  local files="$1" git_summary="$2"
+  cat <<EOF
+You are adding to a personal engineering work log. Below are the files under
+the user's project directories that were modified today, by file mtime. A
+long list is cut short, with a note saying how many files were left out. Many
+of them will not be work: caches, logs, build output, lockfiles, checkpoints,
+editor swap files, generated data. Keep only work-shaped items: things a
+person did on purpose, like writing code, notes, docs, configs, experiments
+or analyses. Use the Read, Glob and Grep tools to open a file when its name
+alone doesn't tell you what the work was. Don't open every file.
+
+The git-based entry for today follows the file list. Don't repeat work it
+already covers. Only add what it misses: uncommitted work, files outside git
+repos, notes, scratch experiments.
+
+Output one "- " bullet per work item, one line each, in plain language,
+starting with the project name in bold, like "- **project**: what was done".
+Reply with the bullets only: no headings, no preamble, no explanation of what
+you filtered out. If nothing is left after filtering, output exactly NONE.
+
+Files modified today:
+$files
+
+Git-based entry for today:
+${git_summary:-(none, no git activity today)}
+EOF
+}
+
+call_file_summarizer() {
+  local prompt="$1" dir
+  local add_dirs=()
+  for dir in "${watch_dirs[@]}"; do
+    [[ -d "$dir" ]] && add_dirs+=("$dir")
+  done
+  printf '%s' "$prompt" | claude -p --model haiku --safe-mode \
+    --tools "Read,Glob,Grep" --allowedTools "Read,Glob,Grep" \
+    --permission-mode dontAsk --add-dir "${add_dirs[@]}" \
+    --no-session-persistence
+}
+
 call_summarizer() {
   local prompt="$1"
   printf '%s' "$prompt" | claude -p --model haiku --safe-mode --tools "" --no-session-persistence
@@ -112,6 +183,17 @@ write_output() {
   printf '%s%s\n\n%s\n' "$prefix" "$heading" "$summary" >> "$log_file"
 }
 
+# Adds a section to the entry write_output just started, without a new
+# date heading.
+append_section() {
+  local section="$1" dry_run="$2"
+  if [[ "$dry_run" == "1" ]]; then
+    printf '\n%s\n' "$section"
+  else
+    printf '\n%s\n' "$section" >> "$log_file"
+  fi
+}
+
 build_activity_report() {
   local repo activity report=""
   while IFS= read -r repo; do
@@ -127,22 +209,44 @@ main() {
   local dry_run=0
   [[ "${1:-}" == "--dry-run" ]] && dry_run=1
 
-  local activity
+  local activity files
   activity="$(build_activity_report)"
+  files="$(build_file_activity_report)"
 
-  if [[ -z "$activity" ]]; then
+  if [[ -z "$activity" && -z "$files" ]]; then
     return 0
   fi
 
-  local prompt summary
-  prompt="$(build_prompt "$activity")"
-
-  if ! summary="$(call_summarizer "$prompt")" || [[ -z "$summary" ]]; then
-    echo "worklog-report: claude summarization failed" >&2
-    return 1
+  local summary=""
+  if [[ -n "$activity" ]]; then
+    if ! summary="$(call_summarizer "$(build_prompt "$activity")")" || [[ -z "$summary" ]]; then
+      echo "worklog-report: claude summarization failed" >&2
+      return 1
+    fi
+    # Written before the file session runs, so a slow file session that hits
+    # the unit's TimeoutStartSec can't take the git entry down with it.
+    write_output "$summary" "$dry_run"
   fi
 
-  write_output "$summary" "$dry_run"
+  [[ -n "$files" ]] || return 0
+
+  # Best-effort: a failed file session only loses the "Other work" section.
+  local file_summary=""
+  if ! file_summary="$(call_file_summarizer "$(build_file_prompt "$files" "$summary")")"; then
+    echo "worklog-report: file activity summarization failed" >&2
+    return 0
+  fi
+  # Only bullet lines are kept: Haiku sometimes explains its filtering or
+  # writes "NONE." instead of NONE, and neither belongs in the log.
+  file_summary="$(printf '%s\n' "$file_summary" | grep -E '^[[:space:]]*[-*] ' || true)"
+  [[ -n "$file_summary" ]] || return 0
+
+  file_summary="## Other work"$'\n\n'"$file_summary"
+  if [[ -n "$summary" ]]; then
+    append_section "$file_summary" "$dry_run"
+  else
+    write_output "$file_summary" "$dry_run"
+  fi
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

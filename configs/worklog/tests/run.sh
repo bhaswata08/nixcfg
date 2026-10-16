@@ -310,6 +310,126 @@ did some stuff in detail"; }
   fi
 ) || fail=1
 
+# --- find_touched_files ---
+mkdir -p "$tmp/mtime/notes" "$tmp/mtime/proj/node_modules/dep"
+echo today > "$tmp/mtime/notes/today.md"
+echo old > "$tmp/mtime/notes/old.md"
+touch -d "2 days ago" "$tmp/mtime/notes/old.md"
+echo dep > "$tmp/mtime/proj/node_modules/dep/index.js"
+touched="$(watch_dirs=("$tmp/mtime"); find_touched_files)"
+assert_eq "find_touched_files lists only today's files outside pruned dirs" \
+  "$tmp/mtime/notes/today.md" "$touched"
+
+(
+  watch_dirs=("$tmp/mtime")
+  max_touched_files=1
+  echo more > "$tmp/mtime/notes/also-today.md"
+  capped="$(build_file_activity_report)"
+  if [[ "$(echo "$capped" | wc -l)" == "2" && "$capped" == *"[... 1 more files not listed ...]"* ]]; then
+    echo "PASS: build_file_activity_report caps the file list"
+  else
+    echo "FAIL: build_file_activity_report caps the file list"
+    exit 1
+  fi
+  rm "$tmp/mtime/notes/also-today.md"
+) || fail=1
+
+# --- main(): only file activity, no git -> "Other work" section alone ---
+(
+  watch_dirs=("$tmp/mtime")
+  claude() { cat > /dev/null; echo "- wrote today's notes"; }
+  export -f claude
+  out="$(main --dry-run)"
+  if [[ "$out" == *"## Other work"* && "$out" == *"wrote today's notes"* && "$out" != *"## Summary"* ]]; then
+    echo "PASS: main writes an Other work section from file activity alone"
+  else
+    echo "FAIL: main writes an Other work section from file activity alone"
+    exit 1
+  fi
+) || fail=1
+
+# --- main(): file session says NONE -> nothing written ---
+(
+  watch_dirs=("$tmp/mtime")
+  claude() { cat > /dev/null; echo "NONE"; }
+  export -f claude
+  out="$(main --dry-run)"
+  if [[ -z "$out" ]]; then
+    echo "PASS: main writes nothing when the file session finds no work"
+  else
+    echo "FAIL: main writes nothing when the file session finds no work"
+    exit 1
+  fi
+) || fail=1
+
+(
+  watch_dirs=("$tmp/mtime")
+  claude() { cat > /dev/null; printf 'These are all build artifacts.\n\nNONE\n'; }
+  export -f claude
+  out="$(main --dry-run)"
+  if [[ -z "$out" ]]; then
+    echo "PASS: main treats reasoning followed by NONE as no work"
+  else
+    echo "FAIL: main treats reasoning followed by NONE as no work"
+    exit 1
+  fi
+) || fail=1
+
+(
+  watch_dirs=("$tmp/mtime")
+  claude() { cat > /dev/null; printf 'Most of these are caches. Here is the work:\n\n- **notes**: wrote notes\nNONE.\n'; }
+  export -f claude
+  out="$(main --dry-run)"
+  if [[ "$out" == *"- **notes**: wrote notes"* && "$out" != *"caches"* && "$out" != *"NONE"* ]]; then
+    echo "PASS: main keeps only bullet lines from the file session"
+  else
+    echo "FAIL: main keeps only bullet lines from the file session"
+    exit 1
+  fi
+) || fail=1
+
+# --- main(): git entry is on disk before the file session starts ---
+(
+  watch_dirs=("$tmp/self_projects")
+  log_file="$tmp/ordered-worklog.md"
+  export log_file
+  claude() {
+    cat > /dev/null
+    if [[ " $* " == *" --add-dir "* ]]; then
+      grep -q "git stuff" "$log_file" && echo "- **x**: saw git entry first"
+      return 0
+    fi
+    echo "## Summary
+- git stuff"
+  }
+  export -f claude
+  main > /dev/null
+  if grep -q "saw git entry first" "$log_file" && [[ "$(grep -c '^## [0-9]' "$log_file")" == "1" ]]; then
+    echo "PASS: main writes the git entry before the file session, under one heading"
+  else
+    echo "FAIL: main writes the git entry before the file session, under one heading"
+    exit 1
+  fi
+) || fail=1
+
+# --- main(): file session fails -> git entry still written ---
+(
+  watch_dirs=("$tmp/self_projects")
+  claude() {
+    if [[ " $* " == *" --add-dir "* ]]; then return 1; fi
+    echo "## Summary
+- git stuff"
+  }
+  export -f claude
+  out="$(main --dry-run 2>/dev/null)"
+  if [[ "$out" == *"git stuff"* && "$out" != *"## Other work"* ]]; then
+    echo "PASS: main keeps the git entry when the file session fails"
+  else
+    echo "FAIL: main keeps the git entry when the file session fails"
+    exit 1
+  fi
+) || fail=1
+
 # --- collect_repo_activity: caps oversized diffs ---
 mkdir -p "$tmp/large-diff-repo"
 git init -q "$tmp/large-diff-repo"

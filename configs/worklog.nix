@@ -34,6 +34,9 @@ in
       Type = "oneshot";
       ExecStart = "${worklogScript}/bin/worklog-report";
       TimeoutStartSec = "10min";
+      # The default ~/.claude login is not the one kept signed in; use the
+      # personal account (same as the `ccp` alias).
+      Environment = "CLAUDE_CONFIG_DIR=%h/.claude-personal";
     };
   };
 
