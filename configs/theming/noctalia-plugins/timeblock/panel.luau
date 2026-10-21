@@ -201,7 +201,7 @@ local function render()
         }),
     })
 
-    panel.render(ui.column({ gap = 12, padding = 16, fill = "surface", radius = 12 }, {
+    panel.render(ui.column({ gap = 12 }, {
         ui.row({ align = "center", justify = "space_between" }, {
             ui.label({ text = "Time Blocks — Today", fontSize = 16, fontWeight = "bold", color = "primary" }),
             ui.button({

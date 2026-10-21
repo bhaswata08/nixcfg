@@ -6,7 +6,7 @@ local function render()
     local state = store.load()
     local pushInc = state.pushIncrement or 15
 
-    panel.render(ui.column({ gap = 8, padding = 12, fill = "surface", radius = 12 }, {
+    panel.render(ui.column({ gap = 8 }, {
         ui.button({
             text = "End now",
             variant = "default",
