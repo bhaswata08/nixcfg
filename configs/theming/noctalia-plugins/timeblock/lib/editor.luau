@@ -5,15 +5,18 @@ editor.colorRoles = { "primary", "secondary", "tertiary", "error" }
 
 export type TargetList = "today" | "template"
 
+-- Loaded lazily so tests/editor_test.luau can load this module under the plain
+-- `luau` CLI, which rejects the `.luau` suffix noctalia requires. The tests only
+-- touch the pure helpers, so these getters never run there.
+--
+-- require() must be called directly, never through pcall(require, ...).
+-- noctalia resolves the path against the calling function's file
+-- (requireBaseDir, luau_host.cpp); under pcall the caller is pcall itself, so
+-- the path resolves from the plugin root and lib/schedule.luau is not found.
 local schedule
 local function getSchedule()
     if not schedule then
-        local ok, res = pcall(require, "./schedule.luau")
-        if ok then
-            schedule = res
-        else
-            schedule = require("./schedule")
-        end
+        schedule = require("./schedule.luau")
     end
     return schedule
 end
@@ -21,12 +24,7 @@ end
 local store
 local function getStore()
     if not store then
-        local ok, res = pcall(require, "./store.luau")
-        if ok then
-            store = res
-        else
-            store = require("./store")
-        end
+        store = require("./store.luau")
     end
     return store
 end
