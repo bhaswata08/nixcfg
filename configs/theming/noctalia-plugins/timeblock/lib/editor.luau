@@ -167,13 +167,20 @@ function editor.deleteBlock(target: TargetList, blockId: string)
     end)
 end
 
+-- ui.input, ui.select and ui.toggle take no tooltip prop, so wrap them in a row
+-- that carries one (plugin_api 32). `grow` passes the child's flexGrow on to the
+-- wrapper, which is the node the parent row actually sizes.
+function editor.withTooltip(text: string, node: any, grow: number?)
+    return ui.row({ tooltip = text, align = "center", flexGrow = grow }, { node })
+end
+
 function editor.labelInput(opts: {
     prefix: string,
     target: TargetList,
     blockId: string,
     value: string,
 })
-    return ui.input({
+    return editor.withTooltip("Block name. Press Enter to save.", ui.input({
         key = opts.prefix .. "_" .. opts.blockId,
         value = opts.value,
         placeholder = "Label",
@@ -182,7 +189,7 @@ function editor.labelInput(opts: {
         onSubmit = function(newVal: string)
             editor.mutateLabel(opts.target, opts.blockId, newVal)
         end,
-    })
+    }), 1)
 end
 
 function editor.timeInput(opts: {
@@ -194,7 +201,8 @@ function editor.timeInput(opts: {
     onInvalid: () -> (),
 })
     local sched = getSchedule()
-    return ui.input({
+    local what = if opts.field == "start" then "Start time" else "End time"
+    return editor.withTooltip(what .. " as HH:MM (24:00 for midnight). Press Enter to save.", ui.input({
         key = editor.timeInputKey(opts.prefix, opts.blockId, opts.field, opts.valueMin),
         value = sched.fmt(opts.valueMin),
         width = 65,
@@ -202,7 +210,7 @@ function editor.timeInput(opts: {
         onSubmit = function(newVal: string)
             editor.submitTime(opts.target, opts.blockId, opts.field, newVal, opts.valueMin, opts.onInvalid)
         end,
-    })
+    }))
 end
 
 function editor.colorSelect(opts: {
@@ -212,7 +220,7 @@ function editor.colorSelect(opts: {
 })
     local colorIdx = table.find(editor.colorRoles, opts.color) or 1
     local selectedIdx = colorIdx - 1
-    return ui.select({
+    return editor.withTooltip("Theme colour for this block on the bar.", ui.select({
         options = editor.colorRoles,
         selectedIndex = selectedIdx,
         width = 110,
@@ -220,7 +228,7 @@ function editor.colorSelect(opts: {
         onChange = function(idxStr: string, optText: string?)
             editor.mutateColor(opts.target, opts.blockId, idxStr, optText)
         end,
-    })
+    }))
 end
 
 function editor.deleteButton(opts: {
@@ -231,6 +239,7 @@ function editor.deleteButton(opts: {
         glyph = "trash",
         variant = "destructive",
         controlSize = "sm",
+        tooltip = if opts.target == "today" then "Delete this block from today" else "Delete this block from the template",
         onClick = function()
             editor.deleteBlock(opts.target, opts.blockId)
         end,

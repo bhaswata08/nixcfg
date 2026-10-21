@@ -1,7 +1,7 @@
 id = "bhaswata/timeblock"
 name = "Time Blocks"
 version = "2.0.0"
-plugin_api = 22
+plugin_api = 32 # 32: tooltips on rows and columns (container-tooltip)
 author = "bhaswata"
 description = "Day-scheduling and time-blocking plugin"
 

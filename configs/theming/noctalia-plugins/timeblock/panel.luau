@@ -15,6 +15,7 @@ local function render()
     local actionRow = ui.row({ gap = 6, align = "center" }, {
         ui.button({
             text = "End now",
+            tooltip = "End the current block at this minute",
             controlSize = "sm",
             onClick = function()
                 local curNow = store.now()
@@ -26,6 +27,7 @@ local function render()
         }),
         ui.button({
             text = "Insert now",
+            tooltip = string.format("Start a %dm Ad-hoc block now", state.defaultBlockMinutes or 30),
             controlSize = "sm",
             onClick = function()
                 local curNow = store.now()
@@ -37,6 +39,7 @@ local function render()
         }),
         ui.button({
             text = string.format("+%dm", pushInc),
+            tooltip = string.format("Push every block that has not started yet %d minutes later", pushInc),
             controlSize = "sm",
             onClick = function()
                 local curNow = store.now()
@@ -51,6 +54,7 @@ local function render()
     local manageRow = ui.row({ gap = 6, align = "center" }, {
         ui.button({
             text = "Reset today",
+            tooltip = "Rebuild today from the weekly template, dropping today's edits",
             variant = "destructive",
             controlSize = "sm",
             onClick = function()
@@ -63,6 +67,7 @@ local function render()
         }),
         ui.button({
             text = "Save as template",
+            tooltip = "Replace the weekly template with today's blocks, on every weekday",
             controlSize = "sm",
             onClick = function()
                 store.mutate(function(s)
@@ -121,7 +126,7 @@ local function render()
             color = b.color,
         }))
 
-        table.insert(rowChildren, ui.toggle({
+        table.insert(rowChildren, editor.withTooltip("Skip this block today. It stays in the template.", ui.toggle({
             checked = b.skipped == true,
             onChange = function(val: string)
                 store.mutate(function(s)
@@ -134,7 +139,7 @@ local function render()
                     return s
                 end)
             end,
-        }))
+        })))
 
         table.insert(rowChildren, editor.deleteButton({
             target = "today",
@@ -167,6 +172,7 @@ local function render()
     local addBlockRow = ui.row({ justify = "start" }, {
         ui.button({
             text = "+ Add block",
+            tooltip = "Add a block after the last one, or at the current time if today is empty",
             variant = "outline",
             controlSize = "sm",
             onClick = function()
@@ -205,6 +211,7 @@ local function render()
             ui.label({ text = "Time Blocks — Today", fontSize = 16, fontWeight = "bold", color = "primary", flexGrow = 1 }),
             ui.button({
                 text = "Template…",
+                tooltip = "Edit the weekly template",
                 variant = "ghost",
                 controlSize = "sm",
                 onClick = function()

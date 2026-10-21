@@ -4,13 +4,13 @@ local schedule = require("./lib/schedule.luau")
 local store = require("./lib/store.luau")
 
 local weekdays = {
-    { day = 0, label = "S" },
-    { day = 1, label = "M" },
-    { day = 2, label = "T" },
-    { day = 3, label = "W" },
-    { day = 4, label = "T" },
-    { day = 5, label = "F" },
-    { day = 6, label = "S" },
+    { day = 0, label = "S", name = "Sunday" },
+    { day = 1, label = "M", name = "Monday" },
+    { day = 2, label = "T", name = "Tuesday" },
+    { day = 3, label = "W", name = "Wednesday" },
+    { day = 4, label = "T", name = "Thursday" },
+    { day = 5, label = "F", name = "Friday" },
+    { day = 6, label = "S", name = "Saturday" },
 }
 
 local function render()
@@ -57,7 +57,7 @@ local function render()
         local weekdayNodes = {}
         for _, d in ipairs(weekdays) do
             local hasDay = b.days ~= nil and table.find(b.days, d.day) ~= nil
-            table.insert(weekdayNodes, ui.column({ gap = 2, align = "center" }, {
+            table.insert(weekdayNodes, ui.column({ gap = 2, align = "center", tooltip = "Repeat on " .. d.name }, {
                 ui.label({ text = d.label, fontSize = 10, color = hasDay and "primary" or "on_surface_variant" }),
                 ui.toggle({
                     checked = hasDay,
@@ -105,6 +105,7 @@ local function render()
     local addBlockRow = ui.row({ justify = "start" }, {
         ui.button({
             text = "+ Add template block",
+            tooltip = "Add a template block after the last one, on every weekday",
             variant = "outline",
             controlSize = "sm",
             onClick = function()
