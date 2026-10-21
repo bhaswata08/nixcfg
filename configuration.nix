@@ -6,10 +6,16 @@
 
 {
   nixpkgs.config.allowUnfree = true;
-  nix.settings.trusted-users = [
-    "root"
-    "bhaswata"
-  ];
+  nix.settings = {
+    trusted-users = [
+      "root"
+      "bhaswata"
+    ];
+    extra-substituters = [ "https://noctalia.cachix.org" ];
+    extra-trusted-public-keys = [
+      "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
+    ];
+  };
   imports = [ 
       ./hardware-configuration.nix
       ./modules/packages/development.nix

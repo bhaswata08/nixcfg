@@ -34,10 +34,9 @@ in
     inputs.pfm.packages.${pkgs.stdenv.hostPlatform.system}.default
     inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
     inputs.qml-niri.packages.${pkgs.stdenv.hostPlatform.system}.default
-    # noctalia-shell is not listed here. programs.noctalia-shell already puts
-    # its package on the user profile, and that one carries the session-menu
-    # transparency patch (configs/theming/noctalia.nix); a second, unpatched
-    # copy in systemPackages would just race it on PATH.
+    # noctalia is not listed here. programs.noctalia already puts its package
+    # on the user profile via Home Manager (inputs.noctalia.homeModules.default);
+    # an extra copy in systemPackages is unnecessary.
     inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default
     herdr-navigator
     no-mistakes

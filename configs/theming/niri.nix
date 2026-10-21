@@ -168,18 +168,16 @@
     // ~/.config/wallust/wezterm/colors-wezterm.toml, the hand-tuned file that
     // configs/wezterm.nix treats as the source of truth. Regenerate by hand
     // when you actually want new colors.
-    // noctalia-shell is a user unit now (configs/theming/noctalia.nix), pulled
-    // in by graphical-session.target, so that a rebuild restarts it and its
-    // ipc keybinds keep pointing at the running instance.
+    // noctalia is managed as a systemd user unit (programs.noctalia.systemd.enable),
+    // pulled in by wayland-session / graphical-session.target, so rebuilds restart
+    // it cleanly and its IPC keybinds point at the active instance.
     spawn-at-startup "xwayland-satellite"
     spawn-at-startup "systemctl" "--user" "start" "hyprpolkitagent"
     spawn-at-startup "nm-applet"
     spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
     spawn-at-startup "blueman-applet"
     spawn-at-startup "sunsetr"
-    // Notifications are owned by noctalia-shell; swaync is not started.
-    // TODO: Change to quickshell
-    // spawn-at-startup "waybar"
+    // Notifications and bar are owned by noctalia; swaync/waybar are not started.
 
 
     // To run a shell command (with variables, pipes, etc.), use spawn-sh-at-startup:
@@ -279,8 +277,8 @@
         Super+B hotkey-overlay-title="Spawn Browser: zen" {spawn "zen"; }
         Super+E hotkey-overlay-title="Spawn Explorer: nautilus" {spawn "nautilus"; }
         Super+Space hotkey-overlay-title="Quick runner: rofi calc/emoji/web/run" { spawn-sh "rofi -show calc -theme ~/.config/rofi/runner.rasi"; }
-        Super+V { spawn-sh "noctalia-shell ipc call launcher clipboard"; }
-        Ctrl+Alt+Delete { spawn-sh "noctalia-shell ipc call sessionMenu toggle"; }
+        Super+V { spawn "noctalia" "msg" "panel-toggle" "clipboard"; }
+        Ctrl+Alt+Delete { spawn "noctalia" "msg" "panel-toggle" "session"; }
 
         XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+ -l 1.0"; }
         XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1-"; }

@@ -148,11 +148,10 @@ cd ~/.config/opencode && npm install
 
 ### Noctalia Time Blocks plugin
 
-The plugin files are nix-managed (`configs/theming/noctalia.nix` links
-`noctalia-plugins/timeblock`), but whether the plugin is *enabled* lives in
-`~/.config/noctalia/plugins.json`, which noctalia writes itself. After the first
-build the plugin is present and switched off. Turn it on in the Noctalia
-settings UI.
+In Noctalia v5, plugins are managed and enabled directly through declarative
+configuration (`configs/theming/noctalia.toml` under `[plugins]`), so manual
+enablement via `~/.config/noctalia/plugins.json` or the settings UI is no longer
+required. (Time Blocks port to v5 is tracked in subsequent tasks).
 
 ## 8. Notes
 

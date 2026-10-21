@@ -40,9 +40,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Binary cache (https://noctalia.cachix.org) only hits without `follows`,
+    # per docs/user/getting-started/nixos.mdx.
     noctalia = {
-      url = "github:noctalia-dev/noctalia/legacy-v4";
-      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:noctalia-dev/noctalia";
     };
 
     herdr = {

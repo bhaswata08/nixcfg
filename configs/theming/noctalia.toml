@@ -1,0 +1,158 @@
+# Noctalia v5 Configuration
+#
+# Note: GUI changes made in Settings land in ~/.local/state/noctalia/settings.toml,
+# which overrides this file.
+#
+# Dropped v4 settings with no v5 equivalent:
+# - bar.density = "compact": v5 controls layout through thickness, padding, widget_spacing, scale, and font_scale.
+# - bar.frameThickness, bar.useSeparateOpacity, bar.outerCorners, bar.enableExclusionZoneInset: replaced by native bar geometry (thickness, margin_edge, margin_ends, radius).
+# - bar.widgets.left.Workspace color overrides (occupiedColor, emptyColor, focusedColor): v5 uses active palette roles or widget-level focused_color, occupied_color, empty_color.
+# - bar.widgets.left.ActiveWindow (maxWidth, scrollingMode, useFixedWidth, textColor): replaced by min_length, max_length, title_scroll, and display = "icon_only".
+# - bar.widgets.right.SystemMonitor multi-stat display (simultaneous CPU usage, CPU temp, and RAM in one widget): v5 sysmon widget renders a single stat on the bar (set to stat = "cpu_usage"); hovering reveals the remaining stats.
+# - bar.widgets.right.Volume/Bluetooth/Brightness displayMode = "onhover": v5 widgets do not have an on-hover label display mode.
+# - bar.widgets.right.Battery (showNoctaliaPerformance, showPowerProfiles): not embedded directly in the v5 battery widget.
+# - bar.widgets.right.ControlCenter (icon = "noctalia"): v5 control-center widget uses glyph = "noctalia" by default.
+# - ui.panelBackgroundOpacity = 0.25: v5 replaces numeric panel opacity with discrete transparency_mode ("solid", "soft", "glass") under [shell.panel]; set to "glass".
+# - Session menu card opacity overrideAttrs patch: v5 session panel does not expose an opacity configuration setting.
+# - general.clockStyle = "custom", general.dimmerOpacity: lockscreen / general styling reworked in v5.
+# - general.enableLockScreenCountdown, lockScreenCountdownDuration: v5 session lock does not use a separate lockscreen countdown; 10s countdown is configured per action under [shell.session.actions].
+
+[bar]
+order = ["main"]
+
+[bar.main]
+position = "top"
+background_opacity = 0.0
+capsule = true
+capsule_opacity = 0.55
+thickness = 34
+margin_edge = 4
+margin_ends = 4
+radius = 12
+padding = 2
+widget_spacing = 6
+font_scale = 0.92
+
+start = ["workspaces", "active_window"]
+center = ["clock"]
+end = [
+  "sysmon",
+  "tray",
+  "bluetooth",
+  "notifications",
+  "battery",
+  "volume",
+  "brightness",
+  "control-center",
+]
+
+[widget.clock]
+format = "{:%I:%M %p %a, %b %d}"
+font_family = "IosevkaTerm NFP Thin Obl"
+
+[widget.volume.actions]
+middle = "exec pwvucontrol || pavucontrol"
+
+[widget.workspaces]
+label_source = "id"
+hide_when_empty = true
+
+[widget.sysmon]
+stat = "cpu_usage"
+
+[widget.active_window]
+display = "icon_only"
+
+[widget.tray]
+drawer = true
+hide_passive = false
+
+[widget.battery]
+display_mode = "graphic"
+
+[theme]
+mode = "dark"
+source = "wallpaper"
+builtin = "Kanagawa"
+wallpaper_scheme = "faithful"
+sync_color_scheme = true
+
+[theme.templates.user.rofi]
+input_path = "@rofiColorsTemplate@"
+output_path = "~/.config/rofi/colors.rasi"
+
+[wallpaper]
+enabled = true
+directory = "/home/bhaswata/dotfiles/nixcfg/configs/theming/wallpapers"
+
+[wallpaper.automation]
+enabled = false
+
+[lockscreen]
+enabled = true
+lock_before_suspend = true
+
+[notification]
+position = "top_right"
+
+[shell]
+avatar_path = "~/.face"
+launch_apps_as_systemd_services = true
+
+[shell.panel]
+transparency_mode = "glass"
+launcher_placement = "attached"
+clipboard_placement = "attached"
+control_center_placement = "attached"
+wallpaper_placement = "attached"
+session_placement = "attached"
+
+[shell.session]
+show_shortcuts = true
+
+[[shell.session.actions]]
+action = "lock"
+countdown_seconds = 10
+
+[[shell.session.actions]]
+action = "logout"
+countdown_seconds = 10
+
+[[shell.session.actions]]
+action = "suspend"
+countdown_seconds = 10
+
+[[shell.session.actions]]
+action = "reboot"
+countdown_seconds = 10
+
+[[shell.session.actions]]
+action = "shutdown"
+countdown_seconds = 10
+
+[system.monitor]
+enabled = true
+
+[dock]
+enabled = false
+
+[desktop_widgets]
+enabled = false
+
+[idle.behavior.lock]
+timeout = 600
+action = "lock"
+enabled = false
+
+[idle.behavior.screen-off]
+timeout = 660
+action = "screen_off"
+enabled = false
+
+[hooks]
+
+[nightlight]
+enabled = false
+
+[plugins]
+enabled = []

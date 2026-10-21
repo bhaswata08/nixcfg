@@ -36,7 +36,7 @@ in
   # beyond the theming files below.
   #
   # The chrome is skinned with Nebula rather than with noctalia's built-in
-  # zenBrowser template, which stays off in configs/theming/noctalia-config.json.
+  # zenBrowser template, which stays off in configs/theming/noctalia.toml.
   # That template only recolours zen's existing surfaces, and no arrangement of
   # flat colours gets to the glass look. Nebula is a real material: it blurs
   # with backdrop-filter inside the browser, so the chrome frosts over the page

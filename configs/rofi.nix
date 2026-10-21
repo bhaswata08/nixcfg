@@ -135,15 +135,11 @@ in
     "rofi/runner.rasi".source = ./rofi/runner.rasi;
   };
 
-  # noctalia's answer to HyDE's wallbash: its template processor renders this
-  # on every wallpaper and colour-scheme change, so rofi tracks the shell
-  # instead of holding a palette of its own. colorSchemes.useWallpaperColors
-  # and templates.enableUserTheming are both on in
-  # configs/theming/noctalia-config.json.
-  programs.noctalia-shell.user-templates.templates.rofi = {
-    input_path = "${./rofi/colors-template.rasi}";
-    output_path = "${config.xdg.configHome}/rofi/colors.rasi";
-  };
+  # noctalia's answer to HyDE's wallbash: its template processor renders
+  # ~/.config/rofi/colors.rasi from ./rofi/colors-template.rasi on every
+  # wallpaper and colour-scheme change, or via `noctalia msg templates-apply`.
+  # The user template is declared under `[theme.templates.user.rofi]` in
+  # configs/theming/noctalia.toml.
 
   # ~/.config/rofi/colors.rasi has to be a plain writable file, since noctalia
   # rewrites it; home-manager cannot own it. But rofi treats a missing @import

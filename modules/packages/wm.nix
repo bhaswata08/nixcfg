@@ -20,9 +20,8 @@
     sunsetr
     wl-kbptr
     wlrctl
-    # No noctalia-qs: it ships `qs`/`quickshell`, not noctalia-shell. The shell
-    # comes from the noctalia flake input and carries its own quickshell build,
-    # so this only added a second, unused quickshell to the closure.
+    # No noctalia / quickshell packages here: noctalia v5 is a native Wayland shell
+    # provided via the noctalia flake input and enabled in Home Manager.
     catppuccin-cursors.mochaDark
     (catppuccin-gtk.override {
       variant = "mocha";
