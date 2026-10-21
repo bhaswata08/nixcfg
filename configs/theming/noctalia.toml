@@ -8,7 +8,7 @@
 # - bar.frameThickness, bar.useSeparateOpacity, bar.outerCorners, bar.enableExclusionZoneInset: replaced by native bar geometry (thickness, margin_edge, margin_ends, radius).
 # - bar.widgets.left.Workspace color overrides (occupiedColor, emptyColor, focusedColor): v5 uses active palette roles or widget-level focused_color, occupied_color, empty_color.
 # - bar.widgets.left.ActiveWindow (maxWidth, scrollingMode, useFixedWidth, textColor): replaced by min_length, max_length, title_scroll, and display = "icon_only".
-# - bar.widgets.right.SystemMonitor multi-stat display (simultaneous CPU usage, CPU temp, and RAM in one widget): v5 sysmon widget renders a single stat on the bar (set to stat = "cpu_usage"); hovering reveals the remaining stats.
+# - bar.widgets.right.SystemMonitor multi-stat display in a single widget: v5 sysmon displays one stat per widget; multiple named widget instances (sysmon, temp, ram) are placed on the bar instead.
 # - bar.widgets.right.Volume/Bluetooth/Brightness displayMode = "onhover": v5 widgets do not have an on-hover label display mode.
 # - bar.widgets.right.Battery (showNoctaliaPerformance, showPowerProfiles): not embedded directly in the v5 battery widget.
 # - bar.widgets.right.ControlCenter (icon = "noctalia"): v5 control-center widget uses glyph = "noctalia" by default.
@@ -37,6 +37,8 @@ start = ["workspaces", "active_window"]
 center = ["clock"]
 end = [
   "sysmon",
+  "temp",
+  "ram",
   "tray",
   "bluetooth",
   "notifications",
@@ -59,6 +61,14 @@ hide_when_empty = true
 
 [widget.sysmon]
 stat = "cpu_usage"
+
+[widget.temp]
+type = "sysmon"
+stat = "cpu_temp"
+
+[widget.ram]
+type = "sysmon"
+stat = "ram_used"
 
 [widget.active_window]
 display = "icon_only"
