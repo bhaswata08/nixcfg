@@ -1,23 +1,8 @@
 -- panel.luau — main scheduling panel for Time Blocks plugin (Luau)
+local editor = require("./lib/editor.luau")
 local schedule = require("./lib/schedule.luau")
 local store = require("./lib/store.luau")
 
-local colorRoles = { "primary", "secondary", "tertiary", "error" }
-
-local function parseHHMM(str: string): number?
-    local h, m = string.match(str, "^%s*(%d%d?):(%d%d)%s*$")
-    if h and m then
-        local hour = tonumber(h)
-        local min = tonumber(m)
-        if hour and min and hour >= 0 and hour <= 24 and min >= 0 and min < 60 then
-            local total = hour * 60 + min
-            if total <= 1440 then
-                return total
-            end
-        end
-    end
-    return nil
-end
 
 local function render()
     local state = store.load()
@@ -100,139 +85,43 @@ local function render()
         local isActive = not b.skipped and (nowMin >= b.start and nowMin < b["end"])
         local isOverlap = overlaps[b.id] == true
 
-        local colorIdx = table.find(colorRoles, b.color) or 1
-        local selectedIdx = colorIdx - 1
-
         local rowChildren = {}
 
         if isOverlap then
             table.insert(rowChildren, ui.label({ text = "⚠", color = "error", fontWeight = "bold" }))
         end
 
-        table.insert(rowChildren, ui.input({
-            key = "label_" .. b.id,
+        table.insert(rowChildren, editor.labelInput({
+            prefix = "label",
+            target = "today",
+            blockId = b.id,
             value = b.label,
-            placeholder = "Label",
-            flexGrow = 1,
-            controlSize = "sm",
-            onChange = function(newVal: string)
-                store.mutate(function(s)
-                    for _, item in ipairs(s.today.blocks) do
-                        if item.id == b.id then
-                            item.label = newVal
-                            break
-                        end
-                    end
-                    return s
-                end)
-            end,
         }))
 
-        table.insert(rowChildren, ui.input({
-            key = "start_" .. b.id .. "_" .. tostring(b.start),
-            value = schedule.fmt(b.start),
-            width = 65,
-            controlSize = "sm",
-            onChange = function(newVal: string)
-                local parsed = parseHHMM(newVal)
-                if parsed ~= nil then
-                    store.mutate(function(s)
-                        for _, item in ipairs(s.today.blocks) do
-                            if item.id == b.id then
-                                item.start = parsed
-                                break
-                            end
-                        end
-                        s.today.blocks = schedule.sorted(s.today.blocks)
-                        return s
-                    end)
-                end
-            end,
-            onSubmit = function(newVal: string)
-                local parsed = parseHHMM(newVal)
-                if parsed ~= nil then
-                    store.mutate(function(s)
-                        for _, item in ipairs(s.today.blocks) do
-                            if item.id == b.id then
-                                item.start = parsed
-                                break
-                            end
-                        end
-                        s.today.blocks = schedule.sorted(s.today.blocks)
-                        return s
-                    end)
-                else
-                    render()
-                end
-            end,
+        table.insert(rowChildren, editor.timeInput({
+            prefix = "start",
+            target = "today",
+            blockId = b.id,
+            field = "start",
+            valueMin = b.start,
+            onInvalid = render,
         }))
 
         table.insert(rowChildren, ui.label({ text = "–" }))
 
-        table.insert(rowChildren, ui.input({
-            key = "end_" .. b.id .. "_" .. tostring(b["end"]),
-            value = schedule.fmt(b["end"]),
-            width = 65,
-            controlSize = "sm",
-            onChange = function(newVal: string)
-                local parsed = parseHHMM(newVal)
-                if parsed ~= nil then
-                    store.mutate(function(s)
-                        for _, item in ipairs(s.today.blocks) do
-                            if item.id == b.id then
-                                item["end"] = parsed
-                                break
-                            end
-                        end
-                        s.today.blocks = schedule.sorted(s.today.blocks)
-                        return s
-                    end)
-                end
-            end,
-            onSubmit = function(newVal: string)
-                local parsed = parseHHMM(newVal)
-                if parsed ~= nil then
-                    store.mutate(function(s)
-                        for _, item in ipairs(s.today.blocks) do
-                            if item.id == b.id then
-                                item["end"] = parsed
-                                break
-                            end
-                        end
-                        s.today.blocks = schedule.sorted(s.today.blocks)
-                        return s
-                    end)
-                else
-                    render()
-                end
-            end,
+        table.insert(rowChildren, editor.timeInput({
+            prefix = "end",
+            target = "today",
+            blockId = b.id,
+            field = "end",
+            valueMin = b["end"],
+            onInvalid = render,
         }))
 
-        table.insert(rowChildren, ui.select({
-            options = colorRoles,
-            selectedIndex = selectedIdx,
-            width = 110,
-            controlSize = "sm",
-            onChange = function(idxStr: string, optText: string?)
-                local chosenColor = (optText ~= nil and optText ~= "") and optText or nil
-                if chosenColor == nil then
-                    local idx = tonumber(idxStr)
-                    if idx and colorRoles[idx + 1] then
-                        chosenColor = colorRoles[idx + 1]
-                    end
-                end
-                if chosenColor then
-                    store.mutate(function(s)
-                        for _, item in ipairs(s.today.blocks) do
-                            if item.id == b.id then
-                                item.color = chosenColor
-                                break
-                            end
-                        end
-                        return s
-                    end)
-                end
-            end,
+        table.insert(rowChildren, editor.colorSelect({
+            target = "today",
+            blockId = b.id,
+            color = b.color,
         }))
 
         table.insert(rowChildren, ui.toggle({
@@ -250,22 +139,9 @@ local function render()
             end,
         }))
 
-        table.insert(rowChildren, ui.button({
-            glyph = "trash",
-            variant = "destructive",
-            controlSize = "sm",
-            onClick = function()
-                store.mutate(function(s)
-                    local nextBlocks = {}
-                    for _, item in ipairs(s.today.blocks) do
-                        if item.id ~= b.id then
-                            table.insert(nextBlocks, item)
-                        end
-                    end
-                    s.today.blocks = nextBlocks
-                    return s
-                end)
-            end,
+        table.insert(rowChildren, editor.deleteButton({
+            target = "today",
+            blockId = b.id,
         }))
 
         local blockColChildren = {}
