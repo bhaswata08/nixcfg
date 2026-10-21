@@ -10,8 +10,9 @@ local function render()
     local pushInc = state.pushIncrement or 15
     local overlaps = schedule.overlappingIds(state.today.blocks)
 
-    -- Header row of action buttons
-    local headerRow = ui.row({ gap = 6, align = "center" }, {
+    -- Action buttons on two rows: all six on one row ran past the panel's
+    -- 540px width. "Template…" lives in the title row instead.
+    local actionRow = ui.row({ gap = 6, align = "center" }, {
         ui.button({
             text = "End now",
             controlSize = "sm",
@@ -45,6 +46,9 @@ local function render()
                 end)
             end,
         }),
+    })
+
+    local manageRow = ui.row({ gap = 6, align = "center" }, {
         ui.button({
             text = "Reset today",
             variant = "destructive",
@@ -67,13 +71,6 @@ local function render()
                     s.today.blocks = newToday
                     return s
                 end)
-            end,
-        }),
-        ui.button({
-            text = "Template…",
-            controlSize = "sm",
-            onClick = function()
-                noctalia.togglePanel("bhaswata/timeblock:template")
             end,
         }),
     })
@@ -201,9 +198,19 @@ local function render()
         }),
     })
 
-    panel.render(ui.column({ gap = 12 }, {
-        ui.row({ align = "center", justify = "space_between" }, {
-            ui.label({ text = "Time Blocks — Today", fontSize = 16, fontWeight = "bold", color = "primary" }),
+    -- flexGrow bounds the root to the panel height. Without it the root sizes to
+    -- its content, so the list never scrolls and spills past the panel.
+    panel.render(ui.column({ gap = 12, flexGrow = 1 }, {
+        ui.row({ gap = 6, align = "center" }, {
+            ui.label({ text = "Time Blocks — Today", fontSize = 16, fontWeight = "bold", color = "primary", flexGrow = 1 }),
+            ui.button({
+                text = "Template…",
+                variant = "ghost",
+                controlSize = "sm",
+                onClick = function()
+                    noctalia.togglePanel("bhaswata/timeblock:template")
+                end,
+            }),
             ui.button({
                 glyph = "x",
                 variant = "ghost",
@@ -213,7 +220,8 @@ local function render()
                 end,
             }),
         }),
-        headerRow,
+        actionRow,
+        manageRow,
         ui.separator({ thickness = 1, color = "outline_variant/0.5" }),
         ui.scroll({ flexGrow = 1, gap = 6 }, blockRows),
         addBlockRow,

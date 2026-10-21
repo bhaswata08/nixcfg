@@ -83,8 +83,6 @@ local function render()
                 }),
             }))
         end
-        table.insert(rowChildren, ui.row({ gap = 4, align = "center" }, weekdayNodes))
-
         table.insert(rowChildren, editor.deleteButton({
             target = "template",
             blockId = b.id,
@@ -98,6 +96,9 @@ local function render()
             fill = "surface_variant/0.2",
         }, {
             ui.row({ gap = 8, align = "center" }, rowChildren),
+            -- The weekday toggles get their own line: on the fields row they pushed
+            -- each block about 110px past the panel's 640px width.
+            ui.row({ gap = 4, align = "center" }, weekdayNodes),
         }))
     end
 
@@ -131,7 +132,9 @@ local function render()
         }),
     })
 
-    panel.render(ui.column({ gap = 12 }, {
+    -- flexGrow bounds the root to the panel height. Without it the root sizes to
+    -- its content, so the list never scrolls and spills past the panel.
+    panel.render(ui.column({ gap = 12, flexGrow = 1 }, {
         ui.row({ align = "center", justify = "space_between" }, {
             ui.label({ text = "Time Blocks — Standing Template", fontSize = 16, fontWeight = "bold", color = "primary" }),
             ui.button({
