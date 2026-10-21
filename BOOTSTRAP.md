@@ -55,6 +55,14 @@ places.
 sudo nixos-rebuild switch --flake .#frosties
 ```
 
+The Noctalia Cachix substituter configured in this repo takes effect only after the first switch. On a fresh machine, Noctalia will compile from source unless the first build passes the substituter options explicitly:
+
+```sh
+sudo nixos-rebuild switch --flake .#frosties \
+  --option extra-substituters https://noctalia.cachix.org \
+  --option extra-trusted-public-keys noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4=
+```
+
 After that, `just switch` works for every later change.
 
 ### If activation aborts with "would be clobbered"
@@ -151,7 +159,9 @@ cd ~/.config/opencode && npm install
 In Noctalia v5, plugins are managed and enabled directly through declarative
 configuration (`configs/theming/noctalia.toml` under `[plugins]`), so manual
 enablement via `~/.config/noctalia/plugins.json` or the settings UI is no longer
-required. (Time Blocks port to v5 is tracked in subsequent tasks).
+required. On first launch, the plugin automatically imports any existing v4
+state from `~/.config/noctalia/plugins/timeblock/settings.json`. Persistent state
+is stored at `~/.local/state/noctalia/plugins/data/bhaswata/timeblock/state.json`.
 
 ## 8. Notes
 

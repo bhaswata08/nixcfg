@@ -27,7 +27,7 @@ local function render()
             onClick = function()
                 local nowMin = store.now()
                 store.mutate(function(s)
-                    s.today.blocks = schedule.insertNow(s.today.blocks, nowMin, s.defaultBlockMinutes, "New Block", s.defaultColor, store.newId)
+                    s.today.blocks = schedule.insertNow(s.today.blocks, nowMin, s.defaultBlockMinutes, "Ad-hoc", s.defaultColor, store.newId)
                     return s
                 end)
                 panel.close()

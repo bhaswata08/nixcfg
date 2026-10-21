@@ -363,6 +363,9 @@ function schedule.overlappingIds(blocks: {Block}): {[string]: boolean}
 end
 
 function schedule.fmt(min: number): string
+    if min == 1440 then
+        return "24:00"
+    end
     local m = (math.floor(min) % 1440 + 1440) % 1440
     local h = math.floor(m / 60)
     local mins = m % 60

@@ -54,6 +54,9 @@ function editor.parseHHMM(str: string): number?
     if h and m then
         local hour = tonumber(h)
         local min = tonumber(m)
+        if hour == 24 and min == 0 then
+            return 1440
+        end
         if hour and min and hour >= 0 and hour <= 23 and min >= 0 and min < 60 then
             return hour * 60 + min
         end
@@ -178,7 +181,7 @@ function editor.labelInput(opts: {
         placeholder = "Label",
         flexGrow = 1,
         controlSize = "sm",
-        onChange = function(newVal: string)
+        onSubmit = function(newVal: string)
             editor.mutateLabel(opts.target, opts.blockId, newVal)
         end,
     })

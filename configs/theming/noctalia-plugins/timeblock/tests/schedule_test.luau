@@ -424,6 +424,7 @@ do
     check("fmt(545) == '09:05'", schedule.fmt(545) == "09:05")
     check("fmt(0) == '00:00'", schedule.fmt(0) == "00:00")
     check("fmt(1439) == '23:59'", schedule.fmt(1439) == "23:59")
+    check("fmt(1440) == '24:00'", schedule.fmt(1440) == "24:00")
 end
 
 -- 11. remaining

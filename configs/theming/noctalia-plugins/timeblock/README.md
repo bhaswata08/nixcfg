@@ -6,11 +6,12 @@ All schedule logic is implemented in pure Luau (`lib/schedule.luau`) and verifie
 
 ## Plugin Entries
 
-The plugin exposes four v5 entries:
+The plugin exposes five v5 entries:
 
+- **`bhaswata/timeblock:core`** — Headless background service handling IPC commands, transition notifications, and midnight rollover persistence.
 - **`bhaswata/timeblock:bar`** — Compact bar widget displaying the current block's label and time remaining (e.g. `Scrum · 25m left`), or `Unscheduled` (`· next in …` during gaps). Left-click toggles the main panel; right-click toggles the quick-actions panel.
-- **`bhaswata/timeblock:panel`** — Main panel containing quick override buttons, a proportional time axis with the *now* indicator, and the editable list of today's blocks (label, start/end times in `HH:MM`, color role, skip toggle, delete).
-- **`bhaswata/timeblock:actions`** — Low-friction quick-actions panel with buttons for `End now`, `Insert now`, `+15m`, and `Reset today`.
+- **`bhaswata/timeblock:panel`** — Main panel containing quick override buttons and the editable list of today's blocks (label, start/end times in `HH:MM`, color role, skip toggle, delete).
+- **`bhaswata/timeblock:actions`** — Low-friction quick-actions panel with buttons for `End now`, `Insert now`, `+<pushIncrement>m` (e.g. `+15m`), and `Reset today`.
 - **`bhaswata/timeblock:template`** — Standing template editor allowing blocks to recur on specific weekdays (Sunday through Saturday).
 
 ## Two Layers
@@ -23,11 +24,11 @@ The plugin exposes four v5 entries:
 Control the plugin or bind shortcuts via Noctalia IPC:
 
 ```sh
-# Override actions sent to the bar widget
-noctalia msg plugin bhaswata/timeblock:bar all endNow       # shrink active block to end now (alias: next)
-noctalia msg plugin bhaswata/timeblock:bar all insertNow    # insert ad-hoc block starting now
-noctalia msg plugin bhaswata/timeblock:bar all push 15      # push remaining blocks by 15 min (or default pushIncrement)
-noctalia msg plugin bhaswata/timeblock:bar all resetToday   # regenerate today from template
+# Override actions sent to the background service
+noctalia msg plugin bhaswata/timeblock:core all endNow       # shrink active block to end now (alias: next)
+noctalia msg plugin bhaswata/timeblock:core all insertNow    # insert ad-hoc block starting now
+noctalia msg plugin bhaswata/timeblock:core all push 15      # push remaining blocks by 15 min (or default pushIncrement)
+noctalia msg plugin bhaswata/timeblock:core all resetToday   # regenerate today from template
 
 # Toggle panels
 noctalia msg panel-toggle bhaswata/timeblock:panel      # open/close main panel
@@ -37,13 +38,14 @@ noctalia msg panel-toggle bhaswata/timeblock:template   # open/close template ma
 
 ## Data Location & v4 Migration
 
-- **State File**: State is stored at `pluginDataDir() / state.json` (typically `~/.local/state/noctalia/plugins/bhaswata/timeblock/state.json`). The plugin source directory is in the read-only Nix store, so plugin state is never saved in the source tree.
+- **State File**: State is stored at `pluginDataDir() / state.json` (typically `~/.local/state/noctalia/plugins/data/bhaswata/timeblock/state.json`). The plugin source directory is in the read-only Nix store, so plugin state is never saved in the source tree.
 - **v4 Import**: If `state.json` does not exist upon initial launch, the plugin automatically imports legacy v4 configuration from `~/.config/noctalia/plugins/timeblock/settings.json`, normalizes the schema via `schedule.importV4`, and saves the initial v5 state. The legacy v4 file is read once and never overwritten.
 
 ## Running Tests
 
-The pure Luau schedule core has zero external runtime dependencies and can be run with the Luau CLI:
+The pure Luau schedule core and editor logic have zero external runtime dependencies and can be run with the Luau CLI:
 
 ```sh
 nix shell nixpkgs#luau -c luau configs/theming/noctalia-plugins/timeblock/tests/schedule_test.luau
+nix shell nixpkgs#luau -c luau configs/theming/noctalia-plugins/timeblock/tests/editor_test.luau
 ```

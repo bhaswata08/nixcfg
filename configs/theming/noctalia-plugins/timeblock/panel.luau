@@ -29,7 +29,7 @@ local function render()
             onClick = function()
                 local curNow = store.now()
                 store.mutate(function(s)
-                    s.today.blocks = schedule.insertNow(s.today.blocks, curNow, s.defaultBlockMinutes, "New Block", s.defaultColor, store.newId)
+                    s.today.blocks = schedule.insertNow(s.today.blocks, curNow, s.defaultBlockMinutes, "Ad-hoc", s.defaultColor, store.newId)
                     return s
                 end)
             end,
@@ -185,7 +185,7 @@ local function render()
                     local endMin = math.clamp(startMin + s.defaultBlockMinutes, 0, 1440)
                     local newB = {
                         id = store.newId(),
-                        label = "New Block",
+                        label = "Ad-hoc",
                         start = startMin,
                         ["end"] = endMin,
                         color = s.defaultColor,
