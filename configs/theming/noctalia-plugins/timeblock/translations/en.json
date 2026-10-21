@@ -1,0 +1,14 @@
+{
+  "settings.notifyTransitions.label": "Notify on transitions",
+  "settings.notifyTransitions.description": "Send a desktop notification when the active time block changes",
+  "settings.pushIncrement.label": "Push increment (minutes)",
+  "settings.pushIncrement.description": "Default minutes to push remaining schedule forward",
+  "settings.defaultBlockMinutes.label": "Default block duration (minutes)",
+  "settings.defaultBlockMinutes.description": "Duration for newly inserted blocks",
+  "settings.defaultColor.label": "Default color",
+  "settings.defaultColor.description": "Theme color role for newly inserted blocks",
+  "colors.primary": "Primary",
+  "colors.secondary": "Secondary",
+  "colors.tertiary": "Tertiary",
+  "colors.error": "Error"
+}

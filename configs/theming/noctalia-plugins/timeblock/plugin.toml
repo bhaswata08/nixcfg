@@ -1,0 +1,69 @@
+id = "bhaswata/timeblock"
+name = "Time Blocks"
+version = "2.0.0"
+plugin_api = 22
+author = "bhaswata"
+description = "Day-scheduling and time-blocking plugin"
+
+[[setting]]
+key = "notifyTransitions"
+type = "bool"
+label_key = "settings.notifyTransitions.label"
+description_key = "settings.notifyTransitions.description"
+default = false
+
+[[setting]]
+key = "pushIncrement"
+type = "int"
+label_key = "settings.pushIncrement.label"
+description_key = "settings.pushIncrement.description"
+default = 15
+min = 1
+max = 240
+
+[[setting]]
+key = "defaultBlockMinutes"
+type = "int"
+label_key = "settings.defaultBlockMinutes.label"
+description_key = "settings.defaultBlockMinutes.description"
+default = 30
+min = 5
+max = 480
+
+[[setting]]
+key = "defaultColor"
+type = "select"
+label_key = "settings.defaultColor.label"
+description_key = "settings.defaultColor.description"
+default = "primary"
+options = [
+  { value = "primary", label_key = "colors.primary" },
+  { value = "secondary", label_key = "colors.secondary" },
+  { value = "tertiary", label_key = "colors.tertiary" },
+  { value = "error", label_key = "colors.error" },
+]
+
+[[widget]]
+id = "bar"
+entry = "widget.luau"
+
+  [widget.actions]
+  middle = "none"
+
+[[panel]]
+id = "panel"
+entry = "panel.luau"
+width = 540
+height = 560
+
+[[panel]]
+id = "actions"
+entry = "actions.luau"
+width = 240
+height = 200
+
+[[panel]]
+id = "template"
+entry = "template.luau"
+width = 640
+height = 560

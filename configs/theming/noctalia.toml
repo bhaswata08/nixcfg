@@ -34,7 +34,7 @@ widget_spacing = 6
 font_scale = 0.92
 
 start = ["workspaces", "active_window"]
-center = ["clock"]
+center = ["clock", "timeblock"]
 end = [
   "sysmon",
   "temp",
@@ -51,6 +51,9 @@ end = [
 [widget.clock]
 format = "{:%I:%M %p %a, %b %d}"
 font_family = "IosevkaTerm NFP Thin Obl"
+
+[widget.timeblock]
+type = "bhaswata/timeblock:bar"
 
 [widget.volume.actions]
 middle = "exec pwvucontrol || pavucontrol"
@@ -165,4 +168,11 @@ enabled = false
 enabled = false
 
 [plugins]
-enabled = []
+enabled = ["bhaswata/timeblock"]
+auto_update = "official"
+
+[[plugins.source]]
+name = "nixcfg"
+kind = "path"
+location = "@pluginsDir@"
+enabled = true

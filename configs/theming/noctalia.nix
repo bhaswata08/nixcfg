@@ -2,11 +2,20 @@
   pkgs,
   ...
 }:
+let
+  pluginsDir = pkgs.linkFarm "noctalia-plugins" [
+    {
+      name = "timeblock";
+      path = ./noctalia-plugins/timeblock;
+    }
+  ];
+in
 {
   programs.noctalia = {
     enable = true;
     settings = pkgs.replaceVars ./noctalia.toml {
       rofiColorsTemplate = ../rofi/colors-template.rasi;
+      pluginsDir = pluginsDir;
     };
     checkConfig = true;
     systemd.enable = true;

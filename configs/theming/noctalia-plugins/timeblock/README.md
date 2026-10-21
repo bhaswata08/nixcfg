@@ -24,10 +24,10 @@ Control the plugin or bind shortcuts via Noctalia IPC:
 
 ```sh
 # Override actions sent to the bar widget
-noctalia msg plugin bhaswata/timeblock bar endNow       # shrink active block to end now (alias: next)
-noctalia msg plugin bhaswata/timeblock bar insertNow    # insert ad-hoc block starting now
-noctalia msg plugin bhaswata/timeblock bar push 15      # push remaining blocks by 15 min (or default pushIncrement)
-noctalia msg plugin bhaswata/timeblock bar resetToday   # regenerate today from template
+noctalia msg plugin bhaswata/timeblock:bar all endNow       # shrink active block to end now (alias: next)
+noctalia msg plugin bhaswata/timeblock:bar all insertNow    # insert ad-hoc block starting now
+noctalia msg plugin bhaswata/timeblock:bar all push 15      # push remaining blocks by 15 min (or default pushIncrement)
+noctalia msg plugin bhaswata/timeblock:bar all resetToday   # regenerate today from template
 
 # Toggle panels
 noctalia msg panel-toggle bhaswata/timeblock:panel      # open/close main panel
