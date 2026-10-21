@@ -5,6 +5,9 @@
 {
   xdg.dataFile."noctalia-plugins/timeblock".source = ./noctalia-plugins/timeblock;
 
+  # The lock screen avatar: noctalia.toml sets `avatar_path = "~/.face"`.
+  home.file.".face".source = ./face.png;
+
   programs.noctalia = {
     enable = true;
     settings = pkgs.replaceVars ./noctalia.toml {
