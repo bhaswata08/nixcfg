@@ -27,10 +27,9 @@
  * vanished. Lightness is what separates these layers; alpha only decides how
  * much wallpaper shows through.
  *
- * Selection and border take tertiary, not primary. noctalia paints its own
- * highlights (selected clipboard row, active workspace pill) with mTertiary,
- * so primary would leave the launcher accented differently from the bar it
- * opens under.
+ * Selection and border take tertiary, not primary. In v4, noctalia painted its
+ * highlights with mTertiary; in v5 it defaults to primary, but tertiary is
+ * retained here for rofi's palette.
  */
 
 * {
