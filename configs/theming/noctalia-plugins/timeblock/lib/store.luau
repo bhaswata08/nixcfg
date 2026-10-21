@@ -28,10 +28,11 @@ export type State = {
 local store = {}
 
 local idCounter = 0
+math.randomseed(os.time() + math.floor(os.clock() * 1000000))
 
 function store.newId(): string
     idCounter += 1
-    return string.format("blk_%d_%d", os.time(), idCounter)
+    return string.format("blk_%d_%d_%d", os.time(), idCounter, math.random(100000, 999999))
 end
 
 function store.now(): (number, number, string, number)
@@ -47,9 +48,12 @@ function store.now(): (number, number, string, number)
     return nowMin, nowSec, date, weekday
 end
 
-local function getStatePath(): string
+local function getStatePaths(): (string?, string?)
     local dir = noctalia.pluginDataDir()
-    return dir .. "/state.json"
+    if dir == nil or dir == "" then
+        return nil, nil
+    end
+    return dir .. "/state.json", dir .. "/state.json.tmp"
 end
 
 local function applyConfigSettings(state: State)
@@ -74,23 +78,50 @@ local function applyConfigSettings(state: State)
     end
 end
 
-function store.save(state: State)
-    local path = getStatePath()
-    local encoded = noctalia.json.encode(state, true)
-    if encoded then
-        noctalia.writeFile(path, encoded)
+local lastGoodState: State? = nil
+
+function store.save(state: State): boolean
+    local path, tmpPath = getStatePaths()
+    if path == nil or tmpPath == nil then
+        noctalia.log("timeblock: pluginDataDir returned nil, cannot save state")
+        return false
     end
+
+    local encoded = noctalia.json.encode(state, true)
+    if not encoded then
+        noctalia.log("timeblock: json encode failed, cannot save state")
+        return false
+    end
+
+    local writeOk, writeErr = noctalia.writeFile(tmpPath, encoded)
+    if not writeOk then
+        noctalia.log(string.format("timeblock: writeFile failed: %s", tostring(writeErr)))
+        return false
+    end
+
+    local renameOk, renameErr = noctalia.renameFile(tmpPath, path)
+    if not renameOk then
+        noctalia.log(string.format("timeblock: renameFile failed: %s", tostring(renameErr)))
+        return false
+    end
+
+    lastGoodState = state
 
     local rev = (tonumber(noctalia.state.get("rev")) or 0) + 1
     noctalia.state.set("rev", rev)
+    return true
 end
 
 function store.load(): State
-    local path = getStatePath()
-    local raw = noctalia.readFile(path)
+    local path, _ = getStatePaths()
+    if path == nil then
+        noctalia.log("timeblock: pluginDataDir returned nil, using in-memory state")
+        return lastGoodState or schedule.defaultState()
+    end
+
     local state: State
 
-    if raw == nil or raw == "" then
+    if not noctalia.fileExists(path) then
         -- Initial launch: import legacy v4 config
         local v4Path = noctalia.expandPath("~/.config/noctalia/plugins/timeblock/settings.json")
         local v4Raw = noctalia.readFile(v4Path)
@@ -102,38 +133,41 @@ function store.load(): State
         end
         store.save(state)
     else
-        local ok, parsed = pcall(noctalia.json.decode, raw)
-        if ok and type(parsed) == "table" then
-            local tpl = type(parsed.template) == "table" and parsed.template or {}
-            local today = type(parsed.today) == "table" and parsed.today or {}
-            local todayDate = type(today.date) == "string" and today.date or ""
-            local todayBlocks = type(today.blocks) == "table" and today.blocks or {}
-
-            state = {
-                template = schedule.sorted(schedule.normalize(tpl, true, store.newId)),
-                today = {
-                    date = todayDate,
-                    blocks = schedule.sorted(schedule.normalize(todayBlocks, false, store.newId)),
-                },
-                notifyTransitions = parsed.notifyTransitions == true,
-                pushIncrement = type(parsed.pushIncrement) == "number" and parsed.pushIncrement or 15,
-                defaultBlockMinutes = type(parsed.defaultBlockMinutes) == "number" and parsed.defaultBlockMinutes or 30,
-                defaultColor = type(parsed.defaultColor) == "string" and parsed.defaultColor ~= "" and parsed.defaultColor or "primary",
-            }
+        local raw, readErr = noctalia.readFile(path)
+        if raw == nil or raw == "" then
+            noctalia.log(string.format("timeblock: state.json exists but readFile failed: %s", tostring(readErr)))
+            state = lastGoodState or schedule.defaultState()
         else
-            state = schedule.defaultState()
+            local ok, parsed = pcall(noctalia.json.decode, raw)
+            if ok and type(parsed) == "table" then
+                local tpl = type(parsed.template) == "table" and parsed.template or {}
+                local today = type(parsed.today) == "table" and parsed.today or {}
+                local todayDate = type(today.date) == "string" and today.date or ""
+                local todayBlocks = type(today.blocks) == "table" and today.blocks or {}
+
+                state = {
+                    template = schedule.sorted(schedule.normalize(tpl, true, store.newId)),
+                    today = {
+                        date = todayDate,
+                        blocks = schedule.sorted(schedule.normalize(todayBlocks, false, store.newId)),
+                    },
+                    notifyTransitions = parsed.notifyTransitions == true,
+                    pushIncrement = type(parsed.pushIncrement) == "number" and parsed.pushIncrement or 15,
+                    defaultBlockMinutes = type(parsed.defaultBlockMinutes) == "number" and parsed.defaultBlockMinutes or 30,
+                    defaultColor = type(parsed.defaultColor) == "string" and parsed.defaultColor ~= "" and parsed.defaultColor or "primary",
+                }
+                lastGoodState = state
+            else
+                noctalia.log(string.format("timeblock: failed to decode state.json: %s", tostring(parsed)))
+                state = lastGoodState or schedule.defaultState()
+            end
         end
     end
 
-    -- Run ensureToday with current local date and weekday
+    -- Run ensureToday in-memory with current local date and weekday
     local _, _, curDate, curWeekday = store.now()
-    local ensuredState, changed = schedule.ensureToday(state, curDate, curWeekday, store.newId)
-    if changed then
-        state = ensuredState
-        store.save(state)
-    else
-        state = ensuredState
-    end
+    local ensuredState = schedule.ensureToday(state, curDate, curWeekday, store.newId)
+    state = ensuredState
 
     -- Plugin settings come from noctalia.getConfig
     applyConfigSettings(state)

@@ -43,6 +43,10 @@ options = [
   { value = "error", label_key = "colors.error" },
 ]
 
+[[service]]
+id = "core"
+entry = "service.luau"
+
 [[widget]]
 id = "bar"
 entry = "widget.luau"
