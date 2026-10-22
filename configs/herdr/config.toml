@@ -32,26 +32,28 @@ next_workspace = "alt+period"
 # helper decides per keypress: if the focused pane registered itself as Neovim (a
 # marker file under ~/.cache/herdr.nvim/panes/), forward the key into Neovim, which
 # moves a window and calls back out to `focus` only at its edge; otherwise move the
-# Herdr pane directly.
+# Herdr pane directly. herdr-nav-dispatch (configs/herdr/herdr-nav-dispatch.sh) sits
+# in front of it and passes the key straight through when the pane is running ssh,
+# so Neovim on a remote host gets it.
 [[keys.command]]
 key = "ctrl+h"
 type = "shell"
-command = "herdr-navigator dispatch left"
+command = "herdr-nav-dispatch left"
 
 [[keys.command]]
 key = "ctrl+j"
 type = "shell"
-command = "herdr-navigator dispatch down"
+command = "herdr-nav-dispatch down"
 
 [[keys.command]]
 key = "ctrl+k"
 type = "shell"
-command = "herdr-navigator dispatch up"
+command = "herdr-nav-dispatch up"
 
 [[keys.command]]
 key = "ctrl+l"
 type = "shell"
-command = "herdr-navigator dispatch right"
+command = "herdr-nav-dispatch right"
 
 [[keys.command]]
 key = "prefix+|"
