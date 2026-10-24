@@ -123,6 +123,7 @@
     antigravity-cli
     gh
     flyctl
+    kitty
   ];
   programs.direnv = {
     enable = true;
