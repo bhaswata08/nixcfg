@@ -33,8 +33,24 @@
     # This appends to installPhase rather than using postInstall, because
     # noctalia's installPhase is hand-written and never calls `runHook
     # postInstall`, so a postInstall would be dropped without a word.
+    # The `quickshell` override patches the noctalia-qs fork for Qt 6.12, which
+    # nixpkgs moved to in October 2026. Qt 6.12 turned an incomplete metatype
+    # into a hard error, so the fork's moc'd pointer properties (Hyprland
+    # monitors and workspaces, i3 monitors and workspaces, pipewire nodes) fail
+    # to compile with "Meta Types must be fully defined". Upstream quickshell
+    # fixed this in 5d5d498 by swapping Q_DECLARE_OPAQUE_POINTER for
+    # Q_MOC_INCLUDE; the fork sits on a June 2026 base and never picked it up.
+    # noctalia-shell only symlinks ${quickshell}/bin/qs, so overriding the
+    # callPackage argument is enough. Drop both the override and the patch once
+    # the noctalia-qs input carries the fix.
     package =
-      inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default.overrideAttrs
+      (inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default.override {
+        quickshell =
+          inputs.noctalia.inputs.noctalia-qs.packages.${pkgs.stdenv.hostPlatform.system}.quickshell.overrideAttrs
+            (old: {
+              patches = (old.patches or [ ]) ++ [ ./noctalia-qs-qt6.12.patch ];
+            });
+      }).overrideAttrs
         (old: {
           installPhase = old.installPhase + ''
             substituteInPlace $out/share/noctalia-shell/Modules/Panels/SessionMenu/SessionMenu.qml \
