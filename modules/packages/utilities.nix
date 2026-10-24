@@ -33,8 +33,6 @@
     nvtopPackages.full
     vulkan-tools
     steam-run
-    motrix
-    motrix-next
     flatpak
     wl-mirror
     jq

@@ -17,7 +17,9 @@
     enable = true;
     openFirewall = true;
   };
+  services.xserver.enable = true;
   services.displayManager.ly.enable = true;
+  services.displayManager.defaultSession = "niri";
   services.udisks2.enable = true;
   services.gvfs.enable = true;
   services.pipewire = {
@@ -38,12 +40,10 @@
     config.common.default = "gtk";
   };
   services.blueman.enable = true;
+  services.fwupd.enable = true;
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
   services.flatpak.enable = true;
-  # No services.xserver.enable / xfce here. niri is the only session, ly is a
-  # TTY greeter, and X11 clients reach the compositor through
-  # xwayland-satellite (started from configs/theming/niri.nix), so nothing
-  # needs a real X server. videoDrivers above is kept: it is what pulls in the
-  # nvidia kernel modules for this machine's dGPU (modules/hardware.nix).
+# Need xfce for steam, dont disable. X server is required for the XFCE session alongside niri
+  services.xserver.desktopManager.xfce.enable = true;
 }

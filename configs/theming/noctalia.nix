@@ -8,15 +8,15 @@
     enable = true;
     settings = ./noctalia-config.json;
 
-    # Run as a user unit instead of niri's `spawn-at-startup`, so that a
-    # rebuild restarts the shell. `noctalia-shell ipc call` addresses a running
+    # Spawned from niri's `spawn-at-startup` instead of a user unit, so the
+    # shell only runs under niri and never starts in xfce (where it crashes
+    # with no wl_display). `noctalia-shell ipc call` addresses a running
     # instance by its shell.qml path, which lives in the store: after any
     # rebuild that moves the package the CLI points at the new path while the
     # process still serves the old one, and every ipc keybind (Super+V for the
     # clipboard, Ctrl+Alt+Delete for the session menu) silently stops working
-    # until the next relog. The unit also carries X-Restart-Triggers on
-    # settings.json and user-templates.toml, so config edits take effect too.
-    systemd.enable = true;
+    # until niri is restarted.
+    systemd.enable = false;
 
     # The session menu's large buttons hardcode an opaque `Color.mSurface`, and
     # no setting exposes it, so the cards sit as solid blocks over the

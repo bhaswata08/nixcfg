@@ -110,6 +110,98 @@ def synclaude [
 # missing external command instead of the def above.
 alias sc = synclaude
 
+# Run Claude Code against OpenRouter's Anthropic-compatible endpoint instead of
+# Anthropic. Same shape as `synclaude` above: the env is scoped to the one
+# command, so `claude` in the same shell still talks to Anthropic and you always
+# know which engine you are on.
+#
+# The API key is read from ~/.config/openrouter/key (chmod 600) or the
+# OPENROUTER_API_KEY env var. It stays out of this file because the nix store is
+# world readable, and out of shell history because it is not an argument.
+#
+#   orclaude                         # muse-spark-1.3 via OpenRouter
+#   orclaude -m sonnet               # claude-sonnet-4.5 via OpenRouter
+#   orclaude -m deepseek -- -p "fix the lint errors"
+#   orclaude -m vendor/some-model    # any full OpenRouter model id, used as-is
+def orclaude [
+    --model (-m): string = "spark"  # spark | opus | sonnet | haiku | deepseek | glm | kimi | <full openrouter model id>
+    ...args                          # passed through to claude
+] {
+    let models = {
+        spark:    "meta/muse-spark-1.3-contributor"
+        opus:     "anthropic/claude-opus-4.5"
+        sonnet:   "anthropic/claude-sonnet-4.5"
+        haiku:    "anthropic/claude-haiku-4.5"
+        deepseek: "deepseek/deepseek-chat"
+        glm:      "z-ai/glm-5.2"
+        kimi:     "moonshotai/kimi-k3"
+    }
+
+    # Context window per preset. Claude Code does not recognize these
+    # OpenRouter model ids, so without this it assumes 200k and
+    # auto-compacts early.
+    let context_lengths = {
+        spark:    1_048_576
+        opus:     200_000
+        sonnet:   200_000
+        haiku:    200_000
+        deepseek: 128_000
+        glm:      200_000
+        kimi:     256_000
+    }
+
+    # A full OpenRouter model id (anything with a "/") is used verbatim, so
+    # new models work without waiting for a preset to be added here.
+    let big = if ($model | str contains "/") {
+        $model
+    } else {
+        ($models | get -o $model)
+    }
+    if ($big | is-empty) {
+        error make {msg: $"unknown model '($model)'. pick one of: ($models | columns | str join ', '), or pass a full OpenRouter model id containing '/'"}
+    }
+
+    let max_context = if ($model | str contains "/") {
+        200_000
+    } else {
+        ($context_lengths | get -o $model)
+    }
+
+    let keyfile = ($env.HOME | path join ".config/openrouter/key")
+    let key = if ($env.OPENROUTER_API_KEY? | default "" | is-not-empty) {
+        $env.OPENROUTER_API_KEY
+    } else if ($keyfile | path exists) {
+        open --raw $keyfile | str trim
+    } else {
+        error make {msg: $"no OpenRouter API key. write it to ($keyfile) or set $env.OPENROUTER_API_KEY"}
+    }
+
+    print $"(ansi yellow)openrouter(ansi reset) ($big)"
+
+    with-env {
+        OPENROUTER_API_KEY: $key
+        ANTHROPIC_BASE_URL: "https://openrouter.ai/api"
+        ANTHROPIC_AUTH_TOKEN: $key
+        ANTHROPIC_API_KEY: ""
+        ANTHROPIC_DEFAULT_OPUS_MODEL: $big
+        ANTHROPIC_DEFAULT_SONNET_MODEL: $big
+        ANTHROPIC_DEFAULT_HAIKU_MODEL: "anthropic/claude-haiku-4.5"
+        CLAUDE_CODE_SUBAGENT_MODEL: $big
+        CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
+        CLAUDE_CODE_MAX_CONTEXT_TOKENS: ($max_context | into string)
+
+        # Inference goes to OpenRouter, so the Anthropic account here only
+        # decides which credentials sit on disk. Keep that on the personal
+        # profile (the one `ccp` uses) rather than the work account. Sessions
+        # and history are shared with ~/.claude either way.
+        CLAUDE_CONFIG_DIR: ($env.HOME | path join ".claude-personal")
+    } { ^claude ...$args }
+}
+
+# Pairs with `cc = claude` and `sc = synclaude` above: cc is Anthropic,
+# sc is Synthetic, orc is OpenRouter. Same parse-time reason for living here.
+alias orc = orclaude
+
 
 # heal-claude-session: fix Claude Code session transcripts corrupted by a
 # non-Anthropic backend (Synthetic, OpenRouter, ...) emitting tool_use /

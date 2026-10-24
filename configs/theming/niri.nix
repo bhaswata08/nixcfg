@@ -17,7 +17,7 @@
     input {
         keyboard {
             xkb {
-                options "caps:swapescape"
+                # options "caps:swapescape"
             }
             numlock
         }
@@ -168,9 +168,11 @@
     // ~/.config/wallust/wezterm/colors-wezterm.toml, the hand-tuned file that
     // configs/wezterm.nix treats as the source of truth. Regenerate by hand
     // when you actually want new colors.
-    // noctalia-shell is a user unit now (configs/theming/noctalia.nix), pulled
-    // in by graphical-session.target, so that a rebuild restarts it and its
-    // ipc keybinds keep pointing at the running instance.
+    // noctalia-shell is spawned here (not as a user unit), so it only runs
+    // under niri and stays off in xfce, where it crashes with no wl_display.
+    // After a rebuild that moves the package, restart niri so the ipc
+    // keybinds point at the new instance.
+    spawn-at-startup "noctalia-shell"
     spawn-at-startup "xwayland-satellite"
     spawn-at-startup "systemctl" "--user" "start" "hyprpolkitagent"
     spawn-at-startup "nm-applet"
