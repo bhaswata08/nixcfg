@@ -7,6 +7,12 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.kernelPackages = pkgs.linuxPackages_latest;
+  # /tmp is on the root ext4, so nothing clears it between boots. Every nh
+  # build leaves a /tmp/nh-osXXXX/result gcroot there pinning its whole system
+  # closure; 17 had accumulated since January 2026, which is why weekly nix-gc
+  # freed almost nothing. `just clean` sweeps them, this stops them piling up
+  # in between.
+  boot.tmp.cleanOnBoot = true;
   boot.kernelModules = [
     "nf_tables"
     "nft_compat"
