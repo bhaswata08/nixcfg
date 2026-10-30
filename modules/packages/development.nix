@@ -1,8 +1,13 @@
 {
   pkgs,
   lib,
+  inputs,
   ...
 }:
+let
+  # Held at 1.19.0; see the nixpkgs-opencode input in flake.nix.
+  opencode = inputs.nixpkgs-opencode.legacyPackages.${pkgs.stdenv.hostPlatform.system}.opencode;
+in
 {
 
   environment.systemPackages = with pkgs; [
@@ -128,7 +133,6 @@
     antigravity-cli
     gh
     flyctl
-    opencode
   ];
   programs.direnv = {
     enable = true;

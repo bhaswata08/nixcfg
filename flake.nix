@@ -51,6 +51,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # opencode held at 1.19.0, the last release on the v1 HTTP API. 2.x moved
+    # the API under /api behind auth and answers the old routes with its web
+    # UI, so the companion's health check and every /session call get HTML
+    # back and its opencode backend is dead. This is the nixpkgs rev from
+    # before 5893c6322 lifted the hold. Drop it once the plugin speaks v2.
+    nixpkgs-opencode.url = "github:nixos/nixpkgs/55bfb4d7437bd4e09ab7cba58a43bd68eb310044";
+
     # Fork of tasict/opencode-plugin-cc carrying the antigravity (agy)
     # transport, which upstream does not have. Fix loop for that transport:
     # commit in the checkout, push to this fork, nix flake update, just switch.

@@ -37,7 +37,7 @@ def --env setup-openrouter-custom [key: string] {
 # SYNTHETIC_API_KEY env var. It stays out of this file because the nix store is
 # world readable, and out of shell history because it is not an argument.
 #
-#   synclaude                    # GLM-5.2
+#   synclaude                    # GLM-5.3
 #   synclaude -m kimi            # Kimi-K3
 #   synclaude -m glm-flash -- -p "fix the lint errors"
 def synclaude [

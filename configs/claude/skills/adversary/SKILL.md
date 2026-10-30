@@ -79,11 +79,8 @@ answering those makes the plan worse, not better.
 
 ## Fallbacks
 
-The reviewer runs on synthetic, whose $30 tier allows only one concurrent
-agent. Do not run it alongside another synthetic-backed agent.
-
-If Kimi K3 is unavailable or rate-limited, fall back to GLM-5.2
-(`synthetic/hf:zai-org/GLM-5.2`), then to Claude Sonnet. Do not fall back to
+If Kimi K3 is unavailable or rate-limited, fall back to GLM-5.3
+(`synthetic/hf:zai-org/GLM-5.3`), then to Claude Sonnet. Do not fall back to
 muse spark: adversarial critique rewards a strong model, and a weak critic
 produces exactly the invented-objection noise this skill exists to avoid.
 
