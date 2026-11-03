@@ -6,6 +6,9 @@
 
 {
   nixpkgs.config.allowUnfree = true;
+  # gtk2 is marked broken ahead of its removal (nixpkgs#410814), but
+  # onlyoffice-desktopeditors still links it. Drop this once onlyoffice moves off gtk2.
+  nixpkgs.config.problems.handlers."gtk+".broken = "warn";
   nix.settings = {
     trusted-users = [
       "root"
