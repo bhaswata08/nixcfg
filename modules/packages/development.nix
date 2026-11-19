@@ -64,14 +64,7 @@ in
 
     # Document and rendering
     mermaid-cli
-    # nixpkgs' cargo setup hook now exports AWS_LC_SYS_USE_SYSTEM=1, but
-    # tectonic-unwrapped doesn't list aws-lc, so aws-lc-sys panics finding none.
-    # Drop once nixpkgs adds aws-lc to tectonic-unwrapped's buildInputs.
-    (tectonic.override {
-      tectonic-unwrapped = tectonic-unwrapped.overrideAttrs (old: {
-        buildInputs = (old.buildInputs or [ ]) ++ [ aws-lc ];
-      });
-    })
+    tectonic
     python3Packages.pylatexenc # latex2text: the fallback converter latex2unicode defers to
     # render-markdown's latex `converter`, laying formulas out in 2D (tall brackets,
     # stacked fractions and limits). Was a pylatexenc + unicodeit Python script, but
