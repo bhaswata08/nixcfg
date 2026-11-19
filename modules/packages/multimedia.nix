@@ -11,7 +11,6 @@
     mpv
     pavucontrol
     gimp
-    stash
   ];
 
   programs.obs-studio.enable = true;

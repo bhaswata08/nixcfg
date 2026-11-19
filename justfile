@@ -8,7 +8,6 @@ test:
     nh os test .
 
 update:
-    nix flake update
+    NIX_CONFIG="access-tokens = github.com=$(gh auth token)" nix flake update
     git add flake.lock
-    git commit -m "global(flake.lock): update flake lock"
-    git push
+    git diff --cached --quiet flake.lock || { git commit -m "global(flake.lock): update flake lock" flake.lock && git push; }

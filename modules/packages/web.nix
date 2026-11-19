@@ -9,6 +9,5 @@
     networkmanagerapplet
     aria2
     pipeline
-    brave
   ];
 }
